@@ -5,7 +5,8 @@ from alembic import context
 import app.models  # noqa: F401
 from app.core.database import Base, engine
 
-if context.config.config_file_name:
+# Only configure logging when run from the alembic CLI, not when the app migrates at startup.
+if context.config.config_file_name and context.config.attributes.get("configure_logger", True):
     fileConfig(context.config.config_file_name)
 
 target_metadata = Base.metadata
@@ -20,8 +21,11 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     with engine.connect() as connection:
+        is_sqlite = connection.dialect.name == "sqlite"
         context.configure(connection=connection, target_metadata=target_metadata,
-                          render_as_batch=connection.dialect.name == "sqlite")
+                          render_as_batch=is_sqlite,
+                          # SQLite reflects UUID columns as NUMERIC; compare types on real databases only.
+                          compare_type=not is_sqlite)
         with context.begin_transaction():
             context.run_migrations()
 

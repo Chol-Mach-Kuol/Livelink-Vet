@@ -10,7 +10,8 @@ from datetime import datetime, timedelta, timezone
 
 import app.models  # noqa: F401
 from app.core.config import settings
-from app.core.database import Base, SessionLocal, engine
+from app.core.database import SessionLocal
+from app.core.migrations import upgrade_db
 from app.core.security import hash_password
 from app.models.disease_report import DiseaseReport
 from app.models.location import Location
@@ -32,7 +33,7 @@ def create_admin(name: str, phone: str) -> None:
     password = getpass.getpass("Password (min 8 chars): ")
     if len(password) < 8:
         raise SystemExit("Password too short.")
-    Base.metadata.create_all(bind=engine)
+    upgrade_db()
     with SessionLocal() as db:
         user = db.query(User).filter(User.phone_number == phone).first()
         if not user:
@@ -56,7 +57,7 @@ DEMO_VET_PASSWORD = "livelink-demo"
 def seed_demo() -> None:
     if settings.ENVIRONMENT == "production":
         raise SystemExit("seed-demo is disabled in production (it creates a known demo login).")
-    Base.metadata.create_all(bind=engine)
+    upgrade_db()
     rng = random.Random(42)
     with SessionLocal() as db:
         if not db.query(User).filter(User.phone_number == DEMO_VET_PHONE).first():

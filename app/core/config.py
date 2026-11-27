@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # SQLite by default so the platform runs out of the box; use PostgreSQL in production.
     DATABASE_URL: str = "sqlite:///./livelink_vet.db"
     SECRET_KEY: str = DEFAULT_DEV_SECRET
+    # Apply Alembic migrations on startup. Turn off if a deploy step runs `alembic upgrade head`
+    # (e.g. with several app instances starting at once).
+    AUTO_MIGRATE: bool = True
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 12  # long sessions: field connectivity is intermittent
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

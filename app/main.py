@@ -5,14 +5,15 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
 import app.models  # noqa: F401  (registers all tables)
-from app.core.database import Base, engine
+from app.core.config import settings
+from app.core.migrations import upgrade_db
 from app.routes import analytics, auth, cases, diagnoses, locations, reports, surveillance, ussd, users
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Dev convenience; use Alembic migrations for production schema changes.
-    Base.metadata.create_all(bind=engine)
+    if settings.AUTO_MIGRATE:
+        upgrade_db()
     yield
 
 

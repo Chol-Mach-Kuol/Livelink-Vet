@@ -52,10 +52,18 @@ USSD_SHARED_SECRET=random-token # callback URL becomes /api/v1/ussd?token=...
 
 ### Database migrations
 
+The schema is managed only by Alembic (`migrations/versions/`). On startup the app brings the
+database up to date by itself. It recognises an empty database, a v0.1 database created before
+Alembic, or one already tracked, and does the right thing for each.
+
 ```bash
-alembic upgrade head                        # new database
-alembic stamp 0001 && alembic upgrade head  # database created by v0.1
+alembic upgrade head                                  # apply migrations by hand
+alembic check                                         # fails if models and migrations differ
+alembic revision --autogenerate -m "describe change"  # after changing a model; review the file
 ```
+
+If several app instances start at once, set `AUTO_MIGRATE=false` and run `alembic upgrade head`
+as a deploy step instead.
 
 ### First admin and demo data
 
