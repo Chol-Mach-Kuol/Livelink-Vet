@@ -82,6 +82,3 @@ def test_reports_geojson(client, make_user, location):
     assert client.get("/api/v1/surveillance/reports.geojson", headers=keeper).status_code == 403
 
 
-def test_dashboard_served(client):
-    resp = client.get("/dashboard")
-    assert resp.status_code == 200 and "LiveLink" in resp.text

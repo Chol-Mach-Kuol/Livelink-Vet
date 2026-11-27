@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Report · LiveLink Vet</title>
+<meta name="theme-color" content="#1f6a4a">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/logo.svg">
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+  /* System fonts only here: the field app must look right offline. */
+  body { --display: Georgia, "Times New Roman", serif; --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .net { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; background: var(--brand-soft); color: var(--brand); white-space: nowrap; }
+  .net i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .net.off { background: var(--accent-soft); color: var(--accent); }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 20px 120px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+  .intro { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; }
+  .intro h1 { font-family: var(--display); font-size: clamp(24px, 4vw, 32px); }
+  .intro p { margin: 4px 0 0; color: var(--muted); }
+
+  .section { padding: 18px; margin-bottom: 14px; }
+  .section h2 { font-size: 15px; display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .section h2 .n { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font-size: 13px; }
+  .section h2 .done { margin-left: auto; color: var(--brand); font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .2s; }
+  .section.ok h2 .done { opacity: 1; }
+
+  .species { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .tile {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; border-radius: 12px;
+    border: 2px solid var(--line); background: var(--bg); cursor: pointer; font: 600 13px var(--sans); color: var(--ink);
+    transition: border-color .15s, background .15s, transform .1s; min-height: 76px; justify-content: center;
+  }
+  .tile .e { font-size: 28px; line-height: 1; }
+  .tile[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-soft); }
+  .tile:active { transform: scale(.97); }
+
+  .group { margin-top: 10px; }
+  .group h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 0 8px; font-weight: 700; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sign {
+    padding: 9px 13px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink);
+    font: 500 14px var(--sans); cursor: pointer; min-height: 40px; transition: all .15s;
+  }
+  .sign[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .sign.severe[aria-pressed="true"] { background: var(--urgent); border-color: var(--urgent); color: #fff; }
+
+  .counts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stepper { display: grid; grid-template-columns: 48px 1fr 48px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+  .stepper button { border: 0; background: var(--bg-2); color: var(--ink); font: 600 22px var(--sans); cursor: pointer; min-height: 52px; }
+  .stepper input { border: 0; border-radius: 0; text-align: center; font: 700 22px var(--sans); background: transparent; min-height: 52px; }
+  .counts label { font-size: 13px; font-weight: 600; color: var(--ink-2); display: block; margin-bottom: 6px; }
+  .error { color: var(--urgent); font-size: 13px; margin-top: 8px; min-height: 1em; }
+
+  .where { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+  .gps { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .gps.on { color: var(--brand); font-weight: 600; }
+  details.newplace { margin-top: 10px; }
+  details.newplace summary { cursor: pointer; color: var(--brand); font-weight: 600; font-size: 14px; padding: 6px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+
+  /* live triage */
+  .triage { position: sticky; top: 76px; padding: 18px; overflow: hidden; }
+  .triage h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .prio { display: flex; align-items: center; gap: 12px; margin: 12px 0 6px; }
+  .prio .dot { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; color: #fff; font-size: 20px; font-weight: 800; transition: background .3s; }
+  .prio .name { font: 700 22px var(--display); text-transform: capitalize; }
+  .prio .why { color: var(--muted); font-size: 13px; }
+  .sig { margin-top: 12px; }
+  .sig .row { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 600; }
+  .meter { height: 6px; border-radius: 99px; background: var(--bg-2); margin-top: 5px; overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 99px; background: var(--brand); transition: width .4s ease; }
+  .meter i.z { background: var(--zoo); }
+  .flag { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--ink); font-size: 13px; }
+  .flag.z { background: var(--zoo-soft); border-left: 4px solid var(--zoo); }
+  .flag b { display: block; margin-bottom: 2px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 14px; }
+  .empty-tri { color: var(--muted); font-size: 14px; padding: 8px 0; }
+
+  /* outbox + history */
+  .list-item { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .list-item:first-of-type { border-top: 0; }
+  .list-item .grow { flex: 1; min-width: 0; }
+  .list-item .sub { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* submit bar */
+  .submitbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line); display: flex; justify-content: center;
+  }
+  .submitbar .inner { width: 100%; max-width: 1080px; display: flex; gap: 12px; align-items: center; }
+  .submitbar .summary { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .submitbar .btn { padding: 14px 22px; font-size: 16px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translate(-50%, 20px); opacity: 0; z-index: 1100;
+    background: var(--ink); color: var(--bg); padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 600;
+    box-shadow: var(--shadow); transition: all .3s; max-width: calc(100vw - 32px); pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* login */
+  .login { max-width: 400px; margin: 8vh auto; padding: 28px; }
+  .login h1 { font-family: var(--display); font-size: 26px; margin-bottom: 6px; }
+  .login .btn { width: 100%; margin-top: 18px; padding: 14px; font-size: 16px; }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 14px; color: var(--ink-2); }
+  .check input { width: 18px; height: 18px; min-height: 0; }
+
+  @media (max-width: 1000px) {
+    .wrap { grid-template-columns: minmax(0, 1fr); }
+    .triage { position: static; }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 16px 16px 120px; gap: 14px; }
+    .species { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .tile { padding: 10px 2px; font-size: 12px; min-height: 70px; }
+    .tile .e { font-size: 24px; }
+    .submitbar { padding-left: 16px; padding-right: 16px; }
+    .submitbar .btn { padding: 14px 18px; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><img src="/static/logo.svg" alt=""><span><b>LiveLink</b> Vet</span></a>
+  <nav>
+    <span class="net" id="net"><i></i><span>Online</span></span>
+    <a class="hide-sm" href="/dashboard">Dashboard</a>
+    <button class="btn icon-btn ghost" id="theme"></button>
+    <button class="btn small ghost" id="logout" hidden>Sign out</button>
+  </nav>
+</header>
+
+<form class="login card" id="login" hidden>
+  <h1>Field reporting</h1>
+  <p class="muted">Sign in once. After that you can report even without signal.</p>
+  <label class="field" for="phone">Phone number</label>
+  <input id="phone" inputmode="tel" autocomplete="username" placeholder="+211…" required>
+  <label class="field" for="password">Password</label>
+  <input id="password" type="password" autocomplete="current-password" required>
+  <label class="check"><input type="checkbox" id="remember" checked> Keep me signed in on this phone</label>
+  <button class="btn primary" type="submit">Sign in</button>
+  <div class="error" id="login-error" role="alert"></div>
+  <p class="muted" style="font-size:13px;margin-top:14px">No smartphone? Dial the LiveLink USSD code on any phone.</p>
+</form>
+
+<main id="app" hidden>
+  <div class="wrap">
+    <div class="intro">
+      <div>
+        <h1>Report sick animals</h1>
+        <p>Tap what you see. Red flags and advice appear as you go.</p>
+      </div>
+    </div>
+
+    <div>
+      <section class="section card" id="s-species">
+        <h2><span class="n">1</span>Which animals? <span class="done">✓</span></h2>
+        <div class="species" id="species"></div>
+      </section>
+
+      <section class="section card" id="s-signs">
+        <h2><span class="n">2</span>What signs do you see? <span class="done">✓</span></h2>
+        <div id="signs"></div>
+      </section>
+
+      <section class="section card" id="s-counts">
+        <h2><span class="n">3</span>How many? <span class="done">✓</span></h2>
+        <div class="counts">
+          <div><label for="sick">Sick (incl. dead)</label>
+            <div class="stepper"><button type="button" data-step="sick:-1" aria-label="Fewer sick">−</button><input id="sick" inputmode="numeric" value="1"><button type="button" data-step="sick:1" aria-label="More sick">+</button></div></div>
+          <div><label for="dead">Dead</label>
+            <div class="stepper"><button type="button" data-step="dead:-1" aria-label="Fewer dead">−</button><input id="dead" inputmode="numeric" value="0"><button type="button" data-step="dead:1" aria-label="More dead">+</button></div></div>
+        </div>
+        <div class="error" id="count-error" role="alert"></div>
+      </section>
+
+      <section class="section card" id="s-where">
+        <h2><span class="n">4</span>Where are the animals? <span class="done">✓</span></h2>
+        <input id="place-search" placeholder="Search camp, payam or county…" aria-label="Search places">
+        <div class="where" style="margin-top:8px">
+          <select id="place" aria-label="Place"></select>
+          <button type="button" class="btn" id="gps-btn">📍 GPS</button>
+        </div>
+        <div class="gps" id="gps">GPS not added. It helps vets find clusters faster.</div>
+        <details class="newplace" id="newplace">
+          <summary>Place not listed? Add it</summary>
+          <div class="grid2">
+            <div><label class="field" for="np-state">State</label><input id="np-state" placeholder="e.g. Jonglei"></div>
+            <div><label class="field" for="np-county">County</label><input id="np-county" placeholder="e.g. Bor South"></div>
+            <div><label class="field" for="np-payam">Payam</label><input id="np-payam"></div>
+            <div><label class="field" for="np-camp">Cattle camp</label><input id="np-camp"></div>
+          </div>
+          <button type="button" class="btn small" id="np-save" style="margin-top:12px">Save place</button>
+          <span class="muted" style="font-size:12px;margin-left:8px">Uses your GPS position if added.</span>
+          <div class="error" id="np-error"></div>
+        </details>
+      </section>
+
+      <section class="section card">
+        <h2><span class="n">5</span>Anything else? <span class="muted" style="font-weight:400;font-size:13px">(optional)</span></h2>
+        <textarea id="notes" placeholder="When did it start? Recent movement, markets, water points, new animals…"></textarea>
+      </section>
+    </div>
+
+    <aside class="side">
+      <section class="triage card" aria-live="polite">
+        <h2>Live check</h2>
+        <div id="triage"></div>
+        <p class="hint">A preview from the signs you tapped. Every report is checked again on arrival, and a vet makes the diagnosis.</p>
+      </section>
+      <section class="section card" style="margin-top:14px">
+        <h2 style="font-size:15px">Waiting to send <span class="pill p-high" id="outbox-count" hidden></span></h2>
+        <div id="outbox"></div>
+        <button type="button" class="btn small" id="sync" style="margin-top:8px" hidden>Send now</button>
+      </section>
+      <section class="section card">
+        <h2 style="font-size:15px">Recent reports</h2>
+        <div id="recent"><div class="muted" style="font-size:14px">Nothing yet.</div></div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="submitbar">
+    <div class="inner">
+      <span class="pill" id="bar-prio" hidden></span>
+      <div class="summary" id="summary">Choose animals and signs to begin.</div>
+      <button class="btn primary" id="submit" type="button" disabled>Send report</button>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/static/common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const OUTBOX = "livelink_outbox", REF = "livelink_ref", PLACES = "livelink_places";
+LL.initThemeToggle($("theme"));
+
+const SPECIES = [["cattle", "🐄", "Cattle"], ["goat", "🐐", "Goats"], ["sheep", "🐑", "Sheep"], ["camel", "🐪", "Camels"],
+                 ["donkey", "🫏", "Donkeys"], ["poultry", "🐓", "Poultry"], ["dog", "🐕", "Dogs"], ["other", "➕", "Other"]];
+const GROUPS = [
+  ["Sudden or severe", ["sudden_death", "bleeding_orifices", "paralysis", "abnormal_behaviour"], true],
+  ["Breathing", ["cough", "difficult_breathing", "nasal_discharge"]],
+  ["Mouth, feet & skin", ["mouth_sores", "drooling", "foot_lesions", "lameness", "skin_nodules", "throat_swelling", "crackling_swelling"]],
+  ["Pregnancy & young", ["abortion", "young_deaths", "reduced_milk", "swollen_joints"]],
+  ["General", ["fever", "diarrhoea", "eye_discharge", "weight_loss", "pale_gums", "swollen_lymph_nodes", "ticks"]],
+];
+const state = { species: null, signs: new Set(), gps: null };
+let ref = LL.store.json(REF, null);
+let places = LL.store.json(PLACES, []);
+
+function toast(msg, ms = 2800) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms);
+}
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+  : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); }));
+
+// ---------------- network status ----------------
+function paintNet() {
+  const on = navigator.onLine;
+  $("net").classList.toggle("off", !on);
+  $("net").querySelector("span").textContent = on ? "Online" : "Offline: saving on phone";
+}
+addEventListener("online", () => { paintNet(); sync(); refreshData(); });
+addEventListener("offline", paintNet);
+paintNet();
+
+// ---------------- auth ----------------
+$("login").addEventListener("submit", async (e) => {
+  e.preventDefault(); $("login-error").textContent = "";
+  try { await LL.login($("phone").value.trim(), $("password").value, $("remember").checked); start(); }
+  catch (err) { $("login-error").textContent = navigator.onLine ? err.message : "You need signal to sign in the first time."; }
+});
+$("logout").onclick = () => {
+  if (outbox().length && !confirm("Some reports have not been sent yet. They stay on this phone and send after you sign in again. Sign out?")) return;
+  LL.setToken(null); showLogin();
+};
+function showLogin(msg) { $("app").hidden = true; $("logout").hidden = true; $("login").hidden = false; $("login-error").textContent = msg || ""; }
+
+// ---------------- reference data (cached for offline) ----------------
+async function refreshData() {
+  if (!navigator.onLine || !LL.token()) return;
+  try {
+    ref = await LL.api("/reports/signs"); LL.store.set(REF, JSON.stringify(ref));
+    places = await LL.api("/locations?limit=500"); LL.store.set(PLACES, JSON.stringify(places));
+    renderSigns(); renderPlaces(); loadRecent();
+  } catch (e) { if (e.status === 401) showLogin("Please sign in again."); }
+}
+
+// ---------------- form ----------------
+function renderSpecies() {
+  $("species").innerHTML = SPECIES.map(([code, e, label]) =>
+    `<button type="button" class="tile" data-sp="${code}" aria-pressed="${state.species === code}"><span class="e" aria-hidden="true">${e}</span>${label}</button>`).join("");
+  $("species").querySelectorAll(".tile").forEach(b => b.onclick = () => { state.species = b.dataset.sp; renderSpecies(); update(); });
+}
+function renderSigns() {
+  if (!ref) { $("signs").innerHTML = '<div class="muted">Connect once to load the list of signs.</div>'; return; }
+  const labels = Object.fromEntries(ref.signs.map(s => [s.code, s.label]));
+  $("signs").innerHTML = GROUPS.map(([title, codes, severe]) => `
+    <div class="group"><h3>${title}</h3><div class="chips">${codes.filter(c => labels[c]).map(c =>
+      `<button type="button" class="sign${severe ? " severe" : ""}" data-sign="${c}" aria-pressed="${state.signs.has(c)}">${LL.esc(labels[c])}</button>`).join("")}</div></div>`).join("");
+  $("signs").querySelectorAll(".sign").forEach(b => b.onclick = () => {
+    const c = b.dataset.sign;
+    state.signs.has(c) ? state.signs.delete(c) : state.signs.add(c);
+    b.setAttribute("aria-pressed", state.signs.has(c)); update();
+  });
+}
+function placeLabel(p) { return [p.cattle_camp, p.payam, p.county, p.state].filter(Boolean).join(", "); }
+function renderPlaces() {
+  const q = $("place-search").value.trim().toLowerCase();
+  const current = $("place").value || LL.store.get("livelink_last_place");
+  const list = places.filter(p => !q || placeLabel(p).toLowerCase().includes(q));
+  $("place").innerHTML = `<option value="">${list.length ? "Choose a place…" : "No matching places"}</option>` +
+    list.map(p => `<option value="${p.id}">${LL.esc(placeLabel(p))}</option>`).join("");
+  if (list.some(p => p.id === current)) $("place").value = current;
+  update();
+}
+$("place-search").addEventListener("input", renderPlaces);
+$("place").addEventListener("change", () => { LL.store.set("livelink_last_place", $("place").value); update(); });
+
+document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => {
+  const [id, d] = b.dataset.step.split(":"); const el = $(id);
+  el.value = Math.max(0, (parseInt(el.value, 10) || 0) + Number(d)); update();
+});
+["sick", "dead", "notes"].forEach(id => $(id).addEventListener("input", update));
+
+$("gps-btn").onclick = () => {
+  if (!navigator.geolocation) { $("gps").textContent = "This phone cannot share GPS."; return; }
+  $("gps").textContent = "Finding your position…";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      state.gps = { latitude: +pos.coords.latitude.toFixed(5), longitude: +pos.coords.longitude.toFixed(5) };
+      $("gps").textContent = `GPS added: ${state.gps.latitude}, ${state.gps.longitude} (±${Math.round(pos.coords.accuracy)} m)`;
+      $("gps").classList.add("on");
+    },
+    () => { $("gps").textContent = "Could not get GPS. You can still send the report."; },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 });
+};
+
+$("np-save").onclick = async () => {
+  $("np-error").textContent = "";
+  const body = { state: $("np-state").value.trim(), county: $("np-county").value.trim() || null,
+                 payam: $("np-payam").value.trim() || null, cattle_camp: $("np-camp").value.trim() || null, ...(state.gps || {}) };
+  if (body.state.length < 2) { $("np-error").textContent = "State is needed."; return; }
+  if (!navigator.onLine) { $("np-error").textContent = "Adding a place needs signal. Choose the nearest listed place for now."; return; }
+  try {
+    const loc = await LL.api("/locations", { method: "POST", body: JSON.stringify(body) });
+    if (!places.some(p => p.id === loc.id)) places.unshift(loc);
+    LL.store.set(PLACES, JSON.stringify(places));
+    $("place-search").value = ""; renderPlaces(); $("place").value = loc.id;
+    LL.store.set("livelink_last_place", loc.id); $("newplace").open = false; update(); toast("Place saved");
+  } catch (e) { $("np-error").textContent = e.detail ? String(e.detail[0]?.msg || e.detail) : "Could not save the place."; }
+};
+
+// ---------------- client-side triage (mirrors app/services/triage.py) ----------------
+const ORDER = ["low", "normal", "high", "urgent"];
+const raise = (cur, to) => ORDER.indexOf(to) > ORDER.indexOf(cur) ? to : cur;
+function triage(signs, species, affected, deaths) {
+  const out = { signals: [], flags: [], priority: "normal", zoonotic: false, advice: [] };
+  if (!ref) return out;
+  for (const d of ref.diseases) {
+    const matched = Object.keys(d.signs).filter(s => signs.has(s));
+    if (matched.length < (d.min_signs ?? 2)) continue;
+    const total = Object.values(d.signs).reduce((a, b) => a + b, 0);
+    let strength = matched.reduce((a, s) => a + d.signs[s], 0) / total;
+    if (!d.species.includes(species)) strength *= 0.3;
+    if (strength < 0.25) continue;
+    out.signals.push({ ...d, strength, matched });
+  }
+  out.signals.sort((a, b) => b.strength - a.strength);
+  out.signals = out.signals.slice(0, 3);
+  let p = "normal";
+  for (const s of out.signals) {
+    if (s.advice) out.advice.push({ text: s.advice, zoo: s.zoonotic });
+    if (s.zoonotic && s.strength >= 0.5) { out.zoonotic = true; out.flags.push(`Possible ${s.name}: a risk to people too`); p = raise(p, "urgent"); }
+    else if (s.woah_listed && s.strength >= 0.5) { out.flags.push(`Possible notifiable disease (${s.name})`); p = raise(p, "high"); }
+  }
+  const m = affected ? deaths / affected : 0;
+  if (deaths >= 5 || (deaths >= 2 && m >= 0.2)) { out.flags.push(`High mortality: ${deaths} of ${affected} died`); p = raise(p, "urgent"); }
+  else if (deaths >= 1) p = raise(p, m >= 0.1 ? "high" : "normal");
+  if (affected >= 20) { out.flags.push(`Many animals affected (${affected})`); p = raise(p, "high"); }
+  if (signs.has("sudden_death") && signs.has("bleeding_orifices")) p = raise(p, "urgent");
+  out.priority = p;
+  return out;
+}
+
+function renderTriage(t, ready) {
+  if (!state.species || !state.signs.size) {
+    $("triage").innerHTML = `<div class="empty-tri">Choose the animals and at least one sign to see the live check.</div>`;
+    return;
+  }
+  const icon = { urgent: "!", high: "▲", normal: "●", low: "·" }[t.priority];
+  const why = { urgent: "A vet should see this today.", high: "A vet should review this soon.", normal: "Routine review.", low: "Routine review." }[t.priority];
+  $("triage").innerHTML = `
+    <div class="prio"><div class="dot p-${t.priority}">${icon}</div>
+      <div><div class="name">${t.priority}</div><div class="why">${why}</div></div></div>
+    ${t.signals.length ? t.signals.map(s => `
+      <div class="sig"><div class="row"><span>${LL.esc(s.name)}</span>
+        ${s.zoonotic ? '<span class="pill p-zoo">Affects people</span>' : s.woah_listed ? '<span class="pill p-normal">Notifiable</span>' : ""}</div>
+        <div class="meter"><i class="${s.zoonotic ? "z" : ""}" style="width:${Math.round(s.strength * 100)}%"></i></div></div>`).join("")
+      : `<div class="empty-tri">No clear disease pattern yet. Add more signs if you can.</div>`}
+    ${t.flags.map(f => `<div class="flag${/people/.test(f) ? " z" : ""}"><b>Red flag</b>${LL.esc(f)}</div>`).join("")}
+    ${t.advice.slice(0, 2).map(a => `<div class="flag${a.zoo ? " z" : ""}"><b>${a.zoo ? "Protect people" : "What to do now"}</b>${LL.esc(a.text)}</div>`).join("")}`;
+}
+
+function counts() {
+  const sick = parseInt($("sick").value, 10), dead = parseInt($("dead").value, 10);
+  return { sick: Number.isFinite(sick) ? sick : NaN, dead: Number.isFinite(dead) ? dead : 0 };
+}
+function update() {
+  const { sick, dead } = counts();
+  let err = "";
+  if (!(sick >= 1)) err = "At least one sick animal.";
+  else if (dead > sick) err = "Dead cannot be more than sick (count dead animals as sick too).";
+  $("count-error").textContent = err;
+  $("s-species").classList.toggle("ok", !!state.species);
+  $("s-signs").classList.toggle("ok", state.signs.size > 0);
+  $("s-counts").classList.toggle("ok", !err);
+  $("s-where").classList.toggle("ok", !!$("place").value);
+  const ready = state.species && state.signs.size && !err && $("place").value;
+  $("submit").disabled = !ready;
+  const sp = SPECIES.find(s => s[0] === state.species);
+  $("summary").textContent = ready
+    ? `${sick} ${sp[2].toLowerCase()} sick, ${dead} dead · ${$("place").selectedOptions[0].textContent}`
+    : !state.species ? "Choose animals and signs to begin." : !state.signs.size ? "Tap at least one sign." : err || "Choose where the animals are.";
+  const t = triage(state.signs, state.species, sick || 0, dead);
+  renderTriage(t, ready);
+  // Always-visible result on small screens, where the live check sits below the form.
+  const bp = $("bar-prio");
+  bp.hidden = !(state.species && state.signs.size);
+  bp.className = `pill p-${t.zoonotic ? "zoo" : t.priority}`;
+  bp.textContent = t.zoonotic ? "Urgent · risk to people" : t.priority;
+}
+
+// ---------------- outbox + sync ----------------
+const outbox = () => LL.store.json(OUTBOX, []);
+const saveOutbox = (items) => LL.store.set(OUTBOX, JSON.stringify(items));
+
+$("submit").onclick = () => {
+  const { sick, dead } = counts();
+  const labels = Object.fromEntries((ref?.signs || []).map(s => [s.code, s.label]));
+  const signs = [...state.signs];
+  const notes = $("notes").value.trim();
+  const payload = {
+    client_ref: uuid(), location_id: $("place").value, species: state.species, signs,
+    symptoms: (notes || "Signs: " + signs.map(s => labels[s] || s).join(", ")).slice(0, 2000),
+    description: notes ? "Signs: " + signs.map(s => labels[s] || s).join(", ") : null,
+    affected_count: sick, death_count: dead, first_observed_at: null, ...(state.gps || {}),
+  };
+  saveOutbox([...outbox(), { payload, queued_at: new Date().toISOString(), place: $("place").selectedOptions[0].textContent }]);
+  // reset for the next report, keep the place
+  state.signs.clear(); state.species = null; $("notes").value = ""; $("sick").value = 1; $("dead").value = 0;
+  renderSpecies(); renderSigns(); update(); renderOutbox();
+  scrollTo({ top: 0, behavior: "smooth" });
+  if (navigator.onLine) { toast("Sending…"); sync(true); } else toast("Saved on this phone. It will send when you have signal.", 4000);
+};
+
+function renderOutbox() {
+  const items = outbox();
+  $("outbox-count").hidden = !items.length; $("outbox-count").textContent = items.length;
+  $("sync").hidden = !items.some(i => !i.error) || !navigator.onLine;
+  $("outbox").innerHTML = items.length ? items.map(i => `
+    <div class="list-item"><span class="pill ${i.error ? "p-urgent" : "p-low"}">${i.error ? "Problem" : "Waiting"}</span>
+      <div class="grow"><div>${i.payload.affected_count} ${LL.esc(i.payload.species)} · ${i.payload.death_count} dead</div>
+      <div class="sub">${LL.esc(i.error || i.place)} · saved ${LL.ago(i.queued_at)}</div></div>
+      ${i.error ? `<button type="button" class="btn small" data-remove="${LL.esc(i.payload.client_ref)}">Delete</button>` : ""}</div>`).join("")
+    : '<div class="muted" style="font-size:14px">All reports sent ✓</div>';
+  $("outbox").querySelectorAll("[data-remove]").forEach(b => b.onclick = () => removeQueued(b.dataset.remove));
+}
+
+let syncing = false;
+async function sync(announce) {
+  const pending = outbox().filter(i => !i.error);
+  if (syncing || !pending.length || !navigator.onLine || !LL.token()) { renderOutbox(); return; }
+  syncing = true;
+  const done = new Set(), bad = {};
+  try {
+    try {
+      const res = await LL.api("/reports/batch", { method: "POST", body: JSON.stringify({ reports: pending.map(i => i.payload) }) });
+      res.forEach(r => done.add(r.client_ref));
+    } catch (e) {
+      if (e.status !== 422 && e.status !== 404) throw e;
+      // One bad report must not block the others: send them one by one and set aside only the failures.
+      for (const i of pending) {
+        try { await LL.api("/reports", { method: "POST", body: JSON.stringify(i.payload) }); done.add(i.payload.client_ref); }
+        catch (err) {
+          if (err.status === 422 || err.status === 404) bad[i.payload.client_ref] = err.status === 404 ? "Place no longer exists." : "Report was not accepted.";
+          else throw err;
+        }
+      }
+    }
+  } catch (e) {
+    if (e.status === 401) showLogin("Your session ended. Sign in to send your saved reports.");
+    else if (announce) toast("No connection. Saved on this phone.", 3500);
+  } finally {
+    saveOutbox(outbox().filter(i => !done.has(i.payload.client_ref))
+      .map(i => bad[i.payload.client_ref] ? { ...i, error: bad[i.payload.client_ref] } : i));
+    if (done.size) { if (announce) toast(done.size > 1 ? `${done.size} reports sent ✓` : "Report sent ✓"); loadRecent(); }
+    if (Object.keys(bad).length) toast("A saved report has a problem. See 'Waiting to send'.", 4000);
+    syncing = false; renderOutbox();
+  }
+}
+function removeQueued(ref) {
+  if (!confirm("Delete this unsent report from the phone?")) return;
+  saveOutbox(outbox().filter(i => i.payload.client_ref !== ref)); renderOutbox();
+}
+$("sync").onclick = () => sync(true);
+setInterval(() => { if (!document.hidden) sync(); }, 30000);
+
+async function loadRecent() {
+  if (!navigator.onLine) return;
+  try {
+    const rows = await LL.api("/reports?limit=6");
+    const byId = Object.fromEntries(places.map(p => [p.id, placeLabel(p)]));
+    $("recent").innerHTML = rows.length ? rows.map(r => `
+      <div class="list-item"><span class="pill p-${LL.esc(r.suggested_priority)}">${LL.esc(r.suggested_priority)}</span>
+        <div class="grow"><div>${LL.esc(r.triage?.signals?.[0]?.name || "No clear signal")}${r.zoonotic_alert ? ' <span class="pill p-zoo">Affects people</span>' : ""}</div>
+        <div class="sub">${r.affected_count} ${LL.esc(r.species)}, ${r.death_count} dead · ${LL.esc(byId[r.location_id] || "")} · ${LL.ago(r.created_at)}</div></div></div>`).join("")
+      : '<div class="muted" style="font-size:14px">Nothing yet.</div>';
+  } catch { /* keep the last list */ }
+}
+
+// ---------------- start ----------------
+function start() {
+  $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
+  renderSpecies(); renderSigns(); renderPlaces(); renderOutbox(); update();
+  refreshData(); sync();
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+LL.token() ? start() : showLogin();
+</script>
+</body>
+</html>

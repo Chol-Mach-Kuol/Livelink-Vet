@@ -1,13 +1,14 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 
 import app.models  # noqa: F401  (registers all tables)
 from app.core.config import settings
 from app.core.migrations import upgrade_db
-from app.routes import analytics, auth, cases, diagnoses, locations, reports, surveillance, ussd, users
+from app.routes import (
+    analytics, auth, cases, diagnoses, locations, pages, public, reports, surveillance, ussd, users,
+)
 
 
 @asynccontextmanager
@@ -35,19 +36,41 @@ app = FastAPI(
 )
 
 PREFIX = "/api/v1"
-for module in (auth, locations, reports, cases, diagnoses, surveillance, analytics, users, ussd):
+for module in (auth, locations, reports, cases, diagnoses, surveillance, analytics, users, ussd, public):
     app.include_router(module.router, prefix=PREFIX)
+app.include_router(pages.router)
+app.mount("/static", StaticFiles(directory=pages.STATIC), name="static")
+
+# The web pages only load code from this server, unpkg (Leaflet) and Google Fonts,
+# and map tiles from OpenStreetMap. /docs keeps FastAPI's defaults (it uses a CDN).
+PAGE_CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://unpkg.com",
+    "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+])
+PAGES = {"/", "/report", "/dashboard"}
 
 
-DASHBOARD = Path(__file__).parent / "static" / "dashboard.html"
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(self), camera=(), microphone=()")
+    if request.url.path in PAGES:
+        response.headers["Content-Security-Policy"] = PAGE_CSP
+        response.headers["X-Frame-Options"] = "DENY"
+    if request.url.scheme == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return response
 
 
-@app.get("/", tags=["health"])
-def root():
-    return {"message": "LiveLink Vet API is running.", "docs": "/docs", "dashboard": "/dashboard"}
-
-
-@app.get("/dashboard", include_in_schema=False)
-def dashboard():
-    """Surveillance map for verified professionals (data is fetched with their token)."""
-    return FileResponse(DASHBOARD, media_type="text/html")
+@app.get("/health", tags=["health"])
+def health():
+    return {"status": "ok", "docs": "/docs", "dashboard": "/dashboard", "field_app": "/report"}

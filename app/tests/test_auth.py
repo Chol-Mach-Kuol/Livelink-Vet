@@ -61,3 +61,15 @@ def test_ussd_user_can_claim_account(client):
     response = client.post("/api/v1/auth/register", json=VALID_USER)
     assert response.status_code == 201
     assert response.json()["full_name"] == "Test Keeper"
+
+
+def test_login_locks_after_repeated_failures(client):
+    client.post("/api/v1/auth/register", json=VALID_USER)
+    bad = {"phone_number": VALID_USER["phone_number"], "password": "wrongpassword"}
+    for _ in range(5):
+        assert client.post("/api/v1/auth/login", json=bad).status_code == 401
+    locked = client.post("/api/v1/auth/login", json=bad)
+    assert locked.status_code == 429 and int(locked.headers["Retry-After"]) > 0
+    # Even the right password is refused while locked.
+    good = {**bad, "password": VALID_USER["password"]}
+    assert client.post("/api/v1/auth/login", json=good).status_code == 429

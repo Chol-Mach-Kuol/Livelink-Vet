@@ -3,337 +3,380 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LiveLink Vet — Surveillance</title>
+<title>Surveillance · LiveLink Vet</title>
+<meta name="theme-color" content="#1f6a4a">
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/static/theme.css">
 <style>
-  :root {
-    --bg: #f6f4ef; --panel: #ffffff; --ink: #1f2420; --muted: #6b716a; --line: #e4e0d6;
-    --brand: #2f6b4f; --brand-ink: #ffffff;
-    --urgent: #c0392b; --high: #d9822b; --normal: #4a7a9c; --low: #9aa19a; --zoo: #8e2c6e;
-    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #141714; --panel: #1d211d; --ink: #e7e9e4; --muted: #9ca39b; --line: #2d332d;
-      --brand: #5fae86; --brand-ink: #0f1a14; --shadow: none;
-    }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
-  header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
-  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
-  header h1 span { color: var(--brand); }
-  header .meta { margin-left: auto; color: var(--muted); font-size: 12px; display: flex; gap: 12px; align-items: center; }
-  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
-  button.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); font-weight: 600; }
-  main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; padding: 16px 20px; max-width: 1500px; margin: 0 auto; }
-  .tiles { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
-  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
-  .tile .label { color: var(--muted); font-size: 12px; }
-  .tile .value { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
-  .tile.alert .value { color: var(--zoo); }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
-  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0; padding: 12px 14px 8px; font-weight: 600; }
-  #map { height: 620px; }
+  main { max-width: 1480px; margin: 0 auto; padding: 18px 20px 28px; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; }
+  .head { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; }
+  .head h1 { font-family: var(--display); font-size: clamp(22px, 3vw, 30px); }
+  .head .meta { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+
+  .tiles { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .tile { padding: 14px 16px; position: relative; overflow: hidden; }
+  .tile .label { color: var(--muted); font-size: 12px; font-weight: 600; }
+  .tile .value { font: 700 28px/1.1 var(--display); font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .tile.zoo { background: linear-gradient(135deg, var(--zoo-soft), var(--panel) 70%); }
+  .tile.zoo .value { color: var(--zoo); }
+  .tile.zoo::after { content: "Affects people"; position: absolute; top: 12px; right: 12px; font-size: 10px; font-weight: 700; color: var(--zoo); }
+
+  .panel { overflow: hidden; }
+  .panel > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 14px 16px 10px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  #map { height: min(62vh, 640px); min-height: 380px; background: var(--bg-2); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px 14px; color: var(--muted); font-size: 12px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .ring { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; vertical-align: -2px; border: 2px solid; }
+
   .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-  .list { max-height: 300px; overflow-y: auto; }
-  .item { padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; }
-  .item:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
+  .list { max-height: 330px; overflow-y: auto; }
+  .item { padding: 11px 16px; border-top: 1px solid var(--line); cursor: pointer; transition: background .15s; }
+  .item:hover { background: color-mix(in srgb, var(--brand) 7%, transparent); }
   .item .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
   .item .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .empty { padding: 14px; color: var(--muted); border-top: 1px solid var(--line); }
-  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 99px; color: #fff; white-space: nowrap; }
-  .p-urgent { background: var(--urgent); } .p-high { background: var(--high); } .p-normal { background: var(--normal); } .p-low { background: var(--low); }
-  .p-zoo { background: var(--zoo); }
-  .legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 14px 12px; color: var(--muted); font-size: 12px; }
-  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
-  .note { grid-column: 1 / -1; color: var(--muted); font-size: 12px; text-align: center; padding-bottom: 8px; }
-  #login { max-width: 360px; margin: 10vh auto; padding: 24px; }
-  #login h2 { padding: 0 0 4px; font-size: 18px; text-transform: none; letter-spacing: 0; color: var(--ink); }
-  #login p { color: var(--muted); margin: 0 0 16px; }
-  #login label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
-  #login input { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
-  #login button { width: 100%; margin-top: 16px; padding: 9px; }
-  #login .error { color: var(--urgent); min-height: 1.4em; margin-top: 8px; font-size: 13px; }
-  .leaflet-popup-content { font: 13px/1.45 system-ui, sans-serif; }
-  .leaflet-popup-content b { display: block; margin-bottom: 2px; }
-  [hidden] { display: none !important; }
-  @media (max-width: 900px) {
-    main { grid-template-columns: minmax(0, 1fr); padding: 12px 16px; }
-    #map { height: 420px; }
-    header { padding: 12px 16px; }
-    header .meta #updated { display: none; }
+  .empty { padding: 14px 16px; color: var(--muted); border-top: 1px solid var(--line); font-size: 14px; }
+
+  /* weekly trend chart */
+  .chart-wrap { grid-column: 1 / -1; }
+  .chart { position: relative; padding: 4px 16px 12px; }
+  .chart svg { display: block; width: 100%; height: 220px; overflow: visible; }
+  .chart .grid line { stroke: var(--line); }
+  .chart .axis text { fill: var(--muted); font-size: 11px; font-family: var(--sans); }
+  .chart .bar { fill: var(--brand); transition: opacity .15s; }
+  .chart .bar.dim { opacity: .35; }
+  .chart .hit { fill: transparent; cursor: pointer; }
+  .tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.45; opacity: 0; transition: opacity .12s; white-space: nowrap; z-index: 5; }
+  .tip b { font-size: 13px; }
+  .table-toggle { font-size: 12px; }
+  table.data { width: calc(100% - 32px); margin: 0 16px 14px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.data th, table.data td { padding: 6px 8px; border-top: 1px solid var(--line); text-align: right; }
+  table.data th:first-child, table.data td:first-child { text-align: left; }
+
+  /* pulsing outbreak rings */
+  .pulse { animation: pulse 2.2s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+  @keyframes pulse { 0%, 100% { stroke-opacity: 1; stroke-width: 2.5; } 50% { stroke-opacity: .35; stroke-width: 7; } }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--ink); }
+  .leaflet-popup-content { font: 13px/1.5 var(--sans); margin: 12px 14px; }
+  .leaflet-popup-content b { display: block; margin-bottom: 3px; font-size: 14px; }
+  .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+  .leaflet-control-attribution { font-size: 10px; }
+  .dark-tiles .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6); }
+  .dark-tiles .leaflet-control-attribution { background: rgba(24,32,26,.8); color: var(--muted); }
+
+  .login { max-width: 400px; margin: 10vh auto; padding: 28px; }
+  .login h1 { font-family: var(--display); font-size: 26px; margin-bottom: 6px; }
+  .login .btn { width: 100%; margin-top: 18px; padding: 13px; }
+  .login .error { color: var(--urgent); min-height: 1.4em; margin-top: 10px; font-size: 13px; }
+
+  @media (max-width: 1180px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 960px) {
+    main { grid-template-columns: minmax(0, 1fr); padding: 14px 16px 24px; }
+    #map { height: 440px; min-height: 0; }
+  }
+  @media (max-width: 560px) {
+    .tiles { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .tile .value { font-size: 24px; }
+    #map { height: 360px; }
+    .head .meta #updated { display: none; }
   }
 </style>
 </head>
 <body>
-<header>
-  <h1><span>LiveLink</span> Vet · Surveillance</h1>
-  <div class="meta">
-    <span id="updated"></span>
-    <button id="refresh" hidden>Refresh</button>
-    <button id="logout" hidden>Sign out</button>
-  </div>
+<header class="topbar">
+  <a class="brand" href="/"><img src="/static/logo.svg" alt=""><span><b>LiveLink</b> Vet</span></a>
+  <nav>
+    <a href="/report">Field app</a>
+    <a href="/dashboard" aria-current="page" class="hide-sm">Dashboard</a>
+    <button class="btn icon-btn ghost" id="theme"></button>
+    <button class="btn small ghost" id="logout" hidden>Sign out</button>
+  </nav>
 </header>
 
-<form id="login" class="panel" hidden>
-  <h2>Sign in</h2>
-  <p>For verified veterinarians, animal health workers, researchers and admins.</p>
-  <label for="phone">Phone number</label>
-  <input id="phone" autocomplete="username" placeholder="+211…" required>
-  <label for="password">Password</label>
+<form id="login" class="login card" hidden>
+  <h1>Surveillance dashboard</h1>
+  <p class="muted">For verified veterinarians, animal health workers, researchers and admins.</p>
+  <label class="field" for="phone">Phone number</label>
+  <input id="phone" autocomplete="username" inputmode="tel" placeholder="+211…" required>
+  <label class="field" for="password">Password</label>
   <input id="password" type="password" autocomplete="current-password" required>
-  <button class="primary" type="submit">Sign in</button>
-  <div class="error" id="login-error"></div>
+  <button class="btn primary" type="submit">Sign in</button>
+  <div class="error" id="login-error" role="alert"></div>
 </form>
 
 <main id="app" hidden>
+  <div class="head">
+    <div><div class="eyebrow">Early warning</div><h1>Livestock disease surveillance</h1></div>
+    <div class="meta"><span id="updated"></span><button class="btn small" id="refresh">Refresh</button></div>
+  </div>
+
   <section class="tiles" id="tiles"></section>
 
-  <section class="panel">
-    <h2>Last 30 days</h2>
-    <div id="map"></div>
+  <section class="panel card">
+    <h2>Reports &amp; clusters · last 30 days</h2>
+    <div id="map" role="region" aria-label="Map of reports and outbreak clusters"></div>
     <div class="legend">
       <span><i class="dot" style="background:var(--urgent)"></i>Urgent</span>
       <span><i class="dot" style="background:var(--high)"></i>High</span>
       <span><i class="dot" style="background:var(--normal)"></i>Normal</span>
-      <span><i class="dot" style="border:2px solid var(--zoo)"></i>Zoonotic cluster</span>
-      <span><i class="dot" style="border:2px solid var(--high)"></i>Cluster</span>
+      <span><i class="ring" style="border-color:var(--zoo)"></i>Cluster: risk to people</span>
+      <span><i class="ring" style="border-color:var(--high)"></i>Cluster</span>
+      <span>Dot size = animals affected</span>
     </div>
   </section>
 
   <div class="side">
-    <section class="panel">
-      <h2>Early warning</h2>
-      <div class="list" id="alerts"></div>
-    </section>
-    <section class="panel">
-      <h2>Urgent reports</h2>
-      <div class="list" id="urgent"></div>
-    </section>
+    <section class="panel card"><h2>Early warning</h2><div class="list" id="alerts"></div></section>
+    <section class="panel card"><h2>Urgent reports</h2><div class="list" id="urgent"></div></section>
   </div>
 
-  <p class="note">Signals are decision support, not diagnoses. Qualified veterinarians make all clinical decisions.</p>
+  <section class="panel card chart-wrap">
+    <h2>Reports per week <button class="btn small ghost table-toggle" id="table-toggle" aria-expanded="false">Show table</button></h2>
+    <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+    <table class="data" id="trend-table" hidden></table>
+  </section>
+
+  <p class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;margin:4px 0 0">Signals are decision support, not diagnoses. Qualified veterinarians make all clinical decisions.</p>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/common.js"></script>
 <script>
-const API = "/api/v1";
-const TOKEN_KEY = "livelink_token";
 const $ = (id) => document.getElementById(id);
-const COLORS = () => {
-  const s = getComputedStyle(document.documentElement);
-  return Object.fromEntries(["urgent", "high", "normal", "low", "zoo"].map(k => [k, s.getPropertyValue("--" + k).trim()]));
-};
+const { esc, fmt, ago } = LL;
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim();
+let map, tiles, reportLayer, clusterLayer, diseaseNames = {}, lastData = null;
 
-function getToken() { try { return sessionStorage.getItem(TOKEN_KEY); } catch { return window._token || null; } }
-function setToken(t) { try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); } catch { window._token = t; } }
-
-// Report data comes from the field; never insert it as raw HTML.
-function esc(v) {
-  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-const fmt = (n) => Number(n || 0).toLocaleString();
-const ago = (iso) => {
-  const mins = Math.round((Date.now() - new Date(iso)) / 60000);
-  if (mins < 60) return `${Math.max(mins, 0)} min ago`;
-  if (mins < 1440) return `${Math.round(mins / 60)} h ago`;
-  return `${Math.round(mins / 1440)} d ago`;
-};
-
-async function api(path) {
-  const res = await fetch(API + path, { headers: { Authorization: "Bearer " + getToken() } });
-  if (res.status === 401) { signOut(); throw new Error("Session expired"); }
-  if (res.status === 403) throw new Error("forbidden");
-  if (!res.ok) throw new Error(`${path}: ${res.status}`);
-  return res.json();
-}
+LL.initThemeToggle($("theme"), () => { setTiles(); if (lastData) draw(lastData); });
 
 // ---------------------------------------------------------------- login
 $("login").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  $("login-error").textContent = "";
-  const res = await fetch(API + "/auth/login", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone_number: $("phone").value.trim(), password: $("password").value }),
-  });
-  if (!res.ok) { $("login-error").textContent = "Phone number or password is incorrect."; return; }
-  setToken((await res.json()).access_token);
-  start();
+  e.preventDefault(); $("login-error").textContent = "";
+  try { await LL.login($("phone").value.trim(), $("password").value, false); start(); }
+  catch (err) { $("login-error").textContent = err.message; }
 });
-
-function signOut() {
-  setToken(null);
-  $("app").hidden = true; $("refresh").hidden = true; $("logout").hidden = true;
-  $("login").hidden = false; $("updated").textContent = "";
+function signOut(msg) {
+  LL.setToken(null);
+  $("app").hidden = true; $("logout").hidden = true; $("login").hidden = false;
+  $("login-error").textContent = msg || "";
 }
-$("logout").onclick = signOut;
+$("logout").onclick = () => signOut();
 $("refresh").onclick = () => load();
 
 // ------------------------------------------------------------------ map
-let map, reportLayer, clusterLayer, diseaseNames = {};
-
+function setTiles() {
+  if (!map) return;
+  if (!tiles) {
+    tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 14, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+  }
+  // One free tile source; dark mode is a CSS filter on the tile layer only (markers keep true colors).
+  $("map").classList.toggle("dark-tiles", LL.isDark());
+}
 function initMap() {
   if (map) return;
-  map = L.map("map", { zoomControl: true }).setView([7.6, 30.5], 6); // South Sudan
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 13, attribution: "&copy; OpenStreetMap contributors",
-  }).addTo(map);
+  map = L.map("map", { zoomControl: true, scrollWheelZoom: false }).setView([7.6, 30.5], 6); // South Sudan
+  map.on("focus", () => map.scrollWheelZoom.enable());
+  setTiles();
   clusterLayer = L.layerGroup().addTo(map);
   reportLayer = L.layerGroup().addTo(map);
 }
 
-function drawMap(reports, clusters) {
-  const c = COLORS();
+function drawMap(reports, clusters, fit) {
   clusterLayer.clearLayers(); reportLayer.clearLayers();
   const bounds = [];
-
   for (const f of clusters.features) {
     const p = f.properties, [lon, lat] = f.geometry.coordinates;
-    const color = p.zoonotic_alert ? c.zoo : c.high;
+    const color = p.zoonotic_alert ? css("zoo") : css("high");
     L.circle([lat, lon], {
-      radius: (Math.max(p.radius_km, 10) + 8) * 1000, color, weight: 2.5, fillColor: color, fillOpacity: 0.15,
+      radius: (Math.max(p.radius_km, 10) + 8) * 1000, color, weight: 2.5, fillColor: color, fillOpacity: .14,
+      className: p.zoonotic_alert ? "pulse" : "",
     }).bindPopup(
       `<b>${esc(diseaseNames[p.dominant_signal] || "Unclassified")} cluster</b>` +
-      `${p.report_count} reports · ${fmt(p.animals_affected)} sick · ${fmt(p.deaths)} dead<br>` +
-      `${esc(p.counties.join("; "))}` +
-      (p.zoonotic_alert ? `<br><span class="pill p-zoo">Zoonotic risk</span>` : "")
+      `${p.report_count} reports · ${fmt(p.animals_affected)} sick · ${fmt(p.deaths)} dead<br>${esc(p.counties.join("; "))}` +
+      (p.zoonotic_alert ? `<br><span class="pill p-zoo" style="margin-top:6px">Risk to people</span>` : "")
     ).addTo(clusterLayer);
     bounds.push([lat, lon]);
   }
-
-  // Draw the most serious reports last so they sit on top.
+  // Most serious last so they sit on top.
   const rank = { low: 0, normal: 1, high: 2, urgent: 3 };
   const ordered = [...reports.features].sort((a, b) =>
     (rank[a.properties.priority] ?? 1) + a.properties.zoonotic - ((rank[b.properties.priority] ?? 1) + b.properties.zoonotic));
   for (const f of ordered) {
     const p = f.properties, [lon, lat] = f.geometry.coordinates;
-    // Small stable offset (from the report id) so reports at one place stay clickable.
+    // Stable offset from the id so reports at one place stay clickable.
     const h = [...p.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
-    const dLat = ((h % 1000) / 1000 - 0.5) * 0.03, dLon = (((h >>> 10) % 1000) / 1000 - 0.5) * 0.03;
+    const dLat = ((h % 1000) / 1000 - .5) * .03, dLon = (((h >>> 10) % 1000) / 1000 - .5) * .03;
     L.circleMarker([lat + dLat, lon + dLon], {
-      radius: 4 + Math.min(Math.sqrt(p.affected), 6), color: "#fff", weight: 1,
-      fillColor: c[p.priority] || c.normal, fillOpacity: 0.9,
+      radius: 5 + Math.min(Math.sqrt(p.affected), 7), color: css("panel"), weight: 2,
+      fillColor: css(p.priority) || css("normal"), fillOpacity: .95,
     }).bindPopup(
-      `<b>${esc(p.top_signal || "No clear signal")}</b>` +
-      `${fmt(p.affected)} ${esc(p.species)} sick · ${fmt(p.deaths)} dead<br>${esc(p.place)}<br>` +
-      `<span class="pill p-${esc(p.priority)}">${esc(p.priority)}</span> ` +
-      (p.zoonotic ? `<span class="pill p-zoo">Zoonotic</span> ` : "") +
-      `<span style="color:var(--muted)">${esc(p.channel)} · ${ago(p.created_at)}</span>`
+      `<b>${esc(p.top_signal || "No clear signal")}</b>${fmt(p.affected)} ${esc(p.species)} sick · ${fmt(p.deaths)} dead<br>${esc(p.place)}<br>` +
+      `<span class="pill p-${esc(p.priority)}" style="margin-top:6px">${esc(p.priority)}</span> ` +
+      (p.zoonotic ? `<span class="pill p-zoo">Risk to people</span> ` : "") +
+      `<span class="muted">${esc(p.channel)} · ${ago(p.created_at)}</span>`
     ).addTo(reportLayer);
     bounds.push([lat, lon]);
   }
-  if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 9 });
+  if (fit && bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
 }
 
 // ---------------------------------------------------------------- panels
 function drawTiles(s, alerts) {
-  const tiles = [
-    ["Reports", s.total_reports],
-    ["Animals sick", s.animals_affected],
-    ["Animal deaths", s.animal_deaths],
-    ["Open cases", s.open_cases],
-    ["Active clusters", alerts.summary.active_clusters],
-    ["Zoonotic alerts", s.zoonotic_alerts, s.zoonotic_alerts > 0],
+  const t = [
+    ["Reports", s.total_reports], ["Animals sick", s.animals_affected], ["Animal deaths", s.animal_deaths],
+    ["Open cases", s.open_cases], ["Active clusters", alerts.summary.active_clusters], ["Zoonotic alerts", s.zoonotic_alerts, "zoo"],
   ];
-  $("tiles").innerHTML = tiles.map(([label, value, hot]) =>
-    `<div class="tile${hot ? " alert" : ""}"><div class="label">${label}</div><div class="value">${fmt(value)}</div></div>`
-  ).join("");
+  $("tiles").innerHTML = t.map(([label, value, cls]) =>
+    `<div class="tile card ${cls || ""}"><div class="label">${label}</div><div class="value">${fmt(value)}</div></div>`).join("");
 }
-
-function drawAlerts(alerts) {
-  const rows = [];
-  for (const c of alerts.spatial_clusters) {
-    rows.push({
-      html: `<div class="top"><span>${esc(diseaseNames[c.dominant_signal] || "Unclassified")} cluster</span>` +
-        (c.zoonotic_alert ? `<span class="pill p-zoo">Zoonotic</span>` : `<span class="pill p-high">Cluster</span>`) + `</div>` +
-        `<div class="sub">${c.report_count} reports · ${fmt(c.deaths)} deaths · ${esc(c.counties.join("; "))}</div>`,
-      at: [c.centroid.latitude, c.centroid.longitude],
-    });
-  }
-  for (const a of alerts.temporal_aberrations) {
-    rows.push({
-      html: `<div class="top"><span>Spike in ${esc(a.county)}</span><span class="pill p-urgent">EARS-C2 ${a.score}</span></div>` +
-        `<div class="sub">${a.reports_today} reports today vs ~${a.baseline_mean}/day baseline · ${esc(a.state)}</div>`,
-    });
-  }
-  renderList("alerts", rows, "No clusters or spikes detected.");
-}
-
-function drawUrgent(reports) {
-  const rows = reports.features
-    .filter(f => f.properties.priority === "urgent")
-    .slice(0, 30)
-    .map(f => {
-      const p = f.properties, [lon, lat] = f.geometry.coordinates;
-      return {
-        html: `<div class="top"><span>${esc(p.top_signal || "High mortality")}</span>` +
-          (p.zoonotic ? `<span class="pill p-zoo">Zoonotic</span>` : `<span class="pill p-urgent">Urgent</span>`) + `</div>` +
-          `<div class="sub">${fmt(p.affected)} ${esc(p.species)} sick, ${fmt(p.deaths)} dead · ${esc(p.place)} · ${ago(p.created_at)}</div>`,
-        at: [lat, lon],
-      };
-    });
-  renderList("urgent", rows, "No urgent reports in the last 30 days.");
-}
-
 function renderList(id, rows, emptyText) {
   const el = $(id);
   if (!rows.length) { el.innerHTML = `<div class="empty">${emptyText}</div>`; return; }
-  el.innerHTML = rows.map((r, i) => `<div class="item" data-i="${i}">${r.html}</div>`).join("");
+  el.innerHTML = rows.map((r, i) => `<div class="item" data-i="${i}" tabindex="0">${r.html}</div>`).join("");
   el.querySelectorAll(".item").forEach(node => {
     const r = rows[node.dataset.i];
-    if (r.at) node.onclick = () => map.setView(r.at, 10);
+    const go = () => { if (r.at) { map.setView(r.at, 10); $("map").scrollIntoView({ behavior: "smooth", block: "center" }); } };
+    node.onclick = go; node.onkeydown = (e) => { if (e.key === "Enter") go(); };
   });
 }
+function drawAlerts(alerts) {
+  const rows = alerts.spatial_clusters.map(c => ({
+    html: `<div class="top"><span>${esc(diseaseNames[c.dominant_signal] || "Unclassified")} cluster</span>` +
+      (c.zoonotic_alert ? `<span class="pill p-zoo">Risk to people</span>` : `<span class="pill p-high">Cluster</span>`) + `</div>` +
+      `<div class="sub">${c.report_count} reports · ${fmt(c.deaths)} deaths · ${esc(c.counties.join("; "))}</div>`,
+    at: [c.centroid.latitude, c.centroid.longitude],
+  })).concat(alerts.temporal_aberrations.map(a => ({
+    html: `<div class="top"><span>Spike in ${esc(a.county)}</span><span class="pill p-urgent">EARS-C2 ${a.score}</span></div>` +
+      `<div class="sub">${a.reports_today} reports today vs ~${a.baseline_mean}/day usually · ${esc(a.state)}</div>`,
+  })));
+  renderList("alerts", rows, "No clusters or spikes detected. ✓");
+}
+function drawUrgent(reports) {
+  const rows = reports.features.filter(f => f.properties.priority === "urgent").slice(0, 30).map(f => {
+    const p = f.properties, [lon, lat] = f.geometry.coordinates;
+    return {
+      html: `<div class="top"><span>${esc(p.top_signal || "High mortality")}</span>` +
+        (p.zoonotic ? `<span class="pill p-zoo">Risk to people</span>` : `<span class="pill p-urgent">Urgent</span>`) + `</div>` +
+        `<div class="sub">${fmt(p.affected)} ${esc(p.species)} sick, ${fmt(p.deaths)} dead · ${esc(p.place)} · ${ago(p.created_at)}</div>`,
+      at: [lat, lon],
+    };
+  });
+  renderList("urgent", rows, "No urgent reports in the last 30 days.");
+}
+
+// ------------------------------------------------- weekly trend (single series)
+function lastWeeks(trends, n = 12) {
+  // Fill gaps so every week shows, including quiet ones.
+  const byWeek = Object.fromEntries(trends.map(t => [t.week, t]));
+  const out = [];
+  const d = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const day = new Date(d.getTime() - i * 7 * 864e5);
+    const t = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()));
+    const dow = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - dow);
+    const y = t.getUTCFullYear(), wk = Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7);
+    const key = `${y}-W${String(wk).padStart(2, "0")}`;
+    const monday = new Date(t); monday.setUTCDate(t.getUTCDate() - 3);
+    out.push({ week: key, start: monday, reports: 0, affected: 0, deaths: 0, ...(byWeek[key] || {}) });
+  }
+  return out;
+}
+function drawChart(trends) {
+  const data = lastWeeks(trends);
+  const el = $("chart"), W = Math.max(el.clientWidth - 32, 280), H = 220, m = { t: 12, r: 8, b: 26, l: 30 };
+  const max = Math.max(4, ...data.map(d => d.reports));
+  const step = Math.ceil(max / 4), top = step * 4;
+  const x = (i) => m.l + i * ((W - m.l - m.r) / data.length);
+  const bw = Math.max(6, Math.min(36, (W - m.l - m.r) / data.length - 8));
+  const y = (v) => m.t + (H - m.t - m.b) * (1 - v / top);
+  const label = (d) => d.start.toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+  const every = W < 520 ? 3 : 1;
+  const bars = data.map((d, i) => {
+    const h = y(0) - y(d.reports), bx = x(i) + ((W - m.l - m.r) / data.length - bw) / 2;
+    const r = Math.min(4, h / 2);
+    // Rounded top, square base anchored to the baseline.
+    const path = h <= 0 ? "" : `M${bx},${y(0)} V${y(d.reports) + r} Q${bx},${y(d.reports)} ${bx + r},${y(d.reports)} H${bx + bw - r} Q${bx + bw},${y(d.reports)} ${bx + bw},${y(d.reports) + r} V${y(0)} Z`;
+    return `<path class="bar" data-i="${i}" d="${path}"/>` +
+      `<rect class="hit" data-i="${i}" x="${x(i)}" y="${m.t}" width="${(W - m.l - m.r) / data.length}" height="${H - m.t - m.b}"/>` +
+      (i % every === 0 ? `<text x="${bx + bw / 2}" y="${H - 8}" text-anchor="middle">${label(d)}</text>` : "");
+  }).join("");
+  const grid = [0, 1, 2, 3, 4].map(k => `<line x1="${m.l}" x2="${W - m.r}" y1="${y(k * step)}" y2="${y(k * step)}"/>` +
+    `<text x="${m.l - 8}" y="${y(k * step) + 4}" text-anchor="end">${k * step}</text>`).join("");
+  el.querySelector("svg")?.remove();
+  el.insertAdjacentHTML("afterbegin",
+    `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Disease reports per week, last 12 weeks"><g class="grid axis">${grid}</g><g class="axis">${bars}</g></svg>`);
+  const tip = $("tip");
+  el.querySelectorAll(".hit").forEach(hit => {
+    const show = () => {
+      const d = data[hit.dataset.i];
+      el.querySelectorAll(".bar").forEach(b => b.classList.toggle("dim", b.dataset.i !== hit.dataset.i));
+      tip.innerHTML = `<b>Week of ${label(d)}</b><br>${fmt(d.reports)} reports<br>${fmt(d.affected)} animals sick · ${fmt(d.deaths)} dead`;
+      const bx = x(+hit.dataset.i) + (W - m.l - m.r) / data.length / 2 + 16;
+      tip.style.left = Math.min(Math.max(bx - 70, 8), el.clientWidth - 160) + "px";
+      tip.style.top = Math.max(y(d.reports) - 70, 0) + "px";
+      tip.style.opacity = 1;
+    };
+    hit.addEventListener("mouseenter", show); hit.addEventListener("touchstart", show, { passive: true });
+  });
+  el.querySelector("svg").addEventListener("mouseleave", () => {
+    tip.style.opacity = 0; el.querySelectorAll(".bar").forEach(b => b.classList.remove("dim"));
+  });
+  $("trend-table").innerHTML = `<thead><tr><th>Week of</th><th>Reports</th><th>Animals sick</th><th>Deaths</th></tr></thead><tbody>` +
+    data.map(d => `<tr><td>${label(d)}</td><td>${fmt(d.reports)}</td><td>${fmt(d.affected)}</td><td>${fmt(d.deaths)}</td></tr>`).join("") + "</tbody>";
+}
+$("table-toggle").onclick = () => {
+  const t = $("trend-table"); t.hidden = !t.hidden;
+  $("table-toggle").textContent = t.hidden ? "Show table" : "Hide table";
+  $("table-toggle").setAttribute("aria-expanded", String(!t.hidden));
+};
+let resizeT; addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => lastData && drawChart(lastData.trends), 150); });
 
 // ------------------------------------------------------------------ load
-async function load() {
+function draw(d, fit) {
+  drawTiles(d.summary, d.alerts); drawAlerts(d.alerts); drawUrgent(d.reports);
+  drawMap(d.reports, d.clusters, fit); drawChart(d.trends);
+}
+async function load(fit) {
   $("updated").textContent = "Updating…";
   try {
-    const [summary, alerts, reports, clusters] = await Promise.all([
-      api("/analytics/summary").catch(e => e.message === "forbidden" ? null : Promise.reject(e)),
-      api("/surveillance/alerts"),
-      api("/surveillance/reports.geojson?days=30"),
-      api("/surveillance/clusters.geojson"),
+    const optional = (p) => p.catch(e => e.status === 403 ? null : Promise.reject(e));
+    const [summary, alerts, reports, clusters, trends] = await Promise.all([
+      optional(LL.api("/analytics/summary")), LL.api("/surveillance/alerts"),
+      LL.api("/surveillance/reports.geojson?days=30"), LL.api("/surveillance/clusters.geojson"),
+      optional(LL.api("/analytics/trends")),
     ]);
-    // Animal health workers can see alerts but not the analytics summary.
-    drawTiles(summary || {
-      total_reports: reports.features.length,
-      animals_affected: reports.features.reduce((a, f) => a + f.properties.affected, 0),
-      animal_deaths: reports.features.reduce((a, f) => a + f.properties.deaths, 0),
-      zoonotic_alerts: reports.features.filter(f => f.properties.zoonotic).length,
-      open_cases: "–",
-    }, alerts);
-    drawAlerts(alerts);
-    drawUrgent(reports);
-    drawMap(reports, clusters);
+    const f = reports.features.map(x => x.properties);
+    // Animal health workers see alerts but not the analytics endpoints.
+    lastData = {
+      summary: summary || {
+        total_reports: f.length, animals_affected: f.reduce((a, p) => a + p.affected, 0),
+        animal_deaths: f.reduce((a, p) => a + p.deaths, 0), zoonotic_alerts: f.filter(p => p.zoonotic).length, open_cases: "–",
+      },
+      alerts, reports, clusters, trends: trends || [],
+    };
+    draw(lastData, fit);
     $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   } catch (e) {
-    if (e.message === "forbidden") {
-      signOut();
-      $("login-error").textContent = "This account does not have a verified professional role yet.";
-    } else {
-      $("updated").textContent = "Could not refresh — check your connection";
-    }
+    if (e.status === 401) signOut("Your session ended. Please sign in again.");
+    else if (e.status === 403) signOut("This account does not have a verified professional role yet.");
+    else $("updated").textContent = "Could not refresh. Check your connection.";
   }
 }
-
 async function start() {
-  $("login").hidden = true; $("app").hidden = false;
-  $("refresh").hidden = false; $("logout").hidden = false;
-  initMap();
-  setTimeout(() => map.invalidateSize(), 0);
+  $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
+  initMap(); setTimeout(() => map.invalidateSize(), 0);
   if (!Object.keys(diseaseNames).length) {
-    try {
-      const ref = await fetch(API + "/reports/signs").then(r => r.json());
-      diseaseNames = Object.fromEntries(ref.diseases.map(d => [d.code, d.name]));
-    } catch { /* names fall back to "Unclassified" */ }
+    try { diseaseNames = Object.fromEntries((await LL.api("/reports/signs")).diseases.map(d => [d.code, d.name])); } catch { /* fall back */ }
   }
-  await load();
+  await load(true);
 }
-
-setInterval(() => { if (getToken() && !document.hidden) load(); }, 60000);
-getToken() ? start() : signOut();
+setInterval(() => { if (LL.token() && !document.hidden && !$("app").hidden) load(false); }, 60000);
+LL.token() ? start() : signOut();
 </script>
 </body>
 </html>

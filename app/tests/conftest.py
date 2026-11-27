@@ -18,6 +18,8 @@ from app.models.user import RoleAssignment, User  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def setup_db():
+    from app.core import ratelimit
+    ratelimit.reset()
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <rect width="64" height="64" rx="14" fill="#1f4d38"/>
+  <!-- lyre-shaped horns of long-horned cattle -->
+  <path d="M32 33c-9 0-16-6-15.5-19.5 0-2 .8-3.5 2-4.5" stroke="#f3e6c8" stroke-width="3.2"/>
+  <path d="M32 33c9 0 16-6 15.5-19.5 0-2-.8-3.5-2-4.5" stroke="#f3e6c8" stroke-width="3.2"/>
+  <path d="M26 31.5c1.5 5 3.5 7.5 6 7.5s4.5-2.5 6-7.5" stroke="#f3e6c8" stroke-width="3.2"/>
+  <!-- herd-health pulse -->
+  <path d="M8 49h14l3.5-6 5 12 4-9 2.5 3H56" stroke="#e8a04a" stroke-width="3.2"/>
+</svg>

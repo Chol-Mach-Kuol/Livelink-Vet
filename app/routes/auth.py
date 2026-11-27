@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+from app.core import ratelimit
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.models.user import User, RoleAssignment
@@ -43,10 +44,17 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenOut)
-def login(payload: UserLogin, db: Session = Depends(get_db)):
+def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
+    keys = (f"phone:{payload.phone_number}", f"ip:{request.client.host if request.client else '?'}")
+    wait = ratelimit.retry_after(*keys)
+    if wait:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again later.",
+                            headers={"Retry-After": str(wait)})
     user = db.query(User).filter(User.phone_number == payload.phone_number).first()
     if not user or not verify_password(payload.password, user.password_hash):
+        ratelimit.record_failure(*keys)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    ratelimit.reset(keys[0])
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is inactive")
 

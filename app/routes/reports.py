@@ -33,7 +33,7 @@ def list_signs():
         "species": list(SPECIES),
         "diseases": [
             {"code": d.code, "name": d.name, "species": list(d.species), "zoonotic": d.zoonotic,
-             "woah_listed": d.woah_listed, "signs": d.signs, "advice": d.advice}
+             "woah_listed": d.woah_listed, "signs": d.signs, "min_signs": d.min_signs, "advice": d.advice}
             for d in DISEASES
         ],
     }

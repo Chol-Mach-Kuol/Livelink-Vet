@@ -1,0 +1,13 @@
+{
+  "name": "LiveLink Vet · Field reporting",
+  "short_name": "LiveLink Vet",
+  "description": "Report sick livestock, even without signal.",
+  "start_url": "/report",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f0e6",
+  "theme_color": "#1f6a4a",
+  "icons": [
+    { "src": "/static/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -80,10 +80,20 @@ uvicorn app.main:app --reload
 
 API docs: <http://127.0.0.1:8000/docs>
 
-Surveillance dashboard: <http://127.0.0.1:8000/dashboard>. It shows a live map of reports and
-outbreak clusters, early-warning alerts and an urgent-report feed, and refreshes every minute.
-Sign in as a verified vet, animal health worker, researcher or admin. After `seed-demo`, the
-demo login is `+211999000000` / `livelink-demo` (`seed-demo` refuses to run in production).
+### Web pages
+
+| Page | Who it is for |
+| --- | --- |
+| `/` | Everyone. Mission, live 30-day numbers, and an animated phone playing the USSD flow. |
+| `/report` | Field workers and herders with smartphones. Big tap targets, live triage as signs are tapped, GPS, and an offline outbox that syncs by itself when signal returns. It can be installed to the home screen and opens with no signal. |
+| `/dashboard` | Verified vets, animal health workers, researchers and admins. Map of reports and pulsing outbreak clusters, early-warning alerts, urgent feed, and a weekly trend chart with a table view. |
+
+All three pages share one design system (`app/static/theme.css`), follow the phone's light or
+dark setting (with a toggle), and work from phone width up. After `seed-demo`, the demo login is
+`+211999000000` / `livelink-demo` (`seed-demo` refuses to run in production).
+
+Security: failed logins are limited (5 per phone number, 30 per IP, per 15 minutes; in memory,
+so per app instance), and the pages send a strict Content-Security-Policy.
 
 Try USSD locally:
 
