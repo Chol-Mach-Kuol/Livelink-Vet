@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
+from app.models.disease_report import DiseaseReport
 from app.models.location import Location
 from app.models.user import User
 from app.permissions.access_control import get_current_user, require_role
@@ -44,6 +45,48 @@ def clusters_geojson(
 ):
     """Clusters as GeoJSON — drop straight into Leaflet, Mapbox, QGIS or Kobo dashboards."""
     return surveillance.to_geojson(surveillance.spatial_clusters(db, radius_km=radius_km, window_days=window_days))
+
+
+@router.get("/reports.geojson")
+def reports_geojson(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(*ANALYST_ROLES)),
+):
+    """Recent reports as map points (device GPS, else the location's coordinates)."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    reports = (
+        db.query(DiseaseReport)
+        .options(joinedload(DiseaseReport.location))
+        .filter(DiseaseReport.created_at >= since)
+        .order_by(DiseaseReport.created_at.desc())
+        .all()
+    )
+    features = []
+    for r in reports:
+        coords = surveillance.report_coords(r)
+        if not coords:
+            continue
+        loc = r.location
+        signals = (r.triage or {}).get("signals") or []
+        features.append({
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [coords[1], coords[0]]},
+            "properties": {
+                "id": str(r.id),
+                "created_at": r.created_at.isoformat(),
+                "species": r.species,
+                "affected": r.affected_count,
+                "deaths": r.death_count,
+                "priority": r.suggested_priority,
+                "zoonotic": bool(r.zoonotic_alert),
+                "status": r.report_status,
+                "channel": r.channel,
+                "top_signal": signals[0]["name"] if signals else None,
+                "place": ", ".join(p for p in (loc.cattle_camp, loc.payam, loc.county, loc.state) if p),
+            },
+        })
+    return {"type": "FeatureCollection", "features": features}
 
 
 @router.get("/advisory")

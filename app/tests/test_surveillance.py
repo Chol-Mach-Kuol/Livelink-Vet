@@ -67,3 +67,21 @@ def test_county_spike_detected(client, make_user, location, db):
     db.commit()
     spikes = client.get("/api/v1/surveillance/alerts", headers=vet).json()["temporal_aberrations"]
     assert spikes and spikes[0]["county"] == "Bor South" and spikes[0]["reports_today"] == 6
+
+
+def test_reports_geojson(client, make_user, location):
+    vet, _ = make_user("veterinarian")
+    keeper, _ = make_user()
+    _submit(client, keeper, location(cattle_camp="Malek camp"), signs=["sudden_death", "bleeding_orifices"], death_count=2)
+    _submit(client, keeper, location(lat=None, lon=None))  # no coordinates: left off the map
+    geo = client.get("/api/v1/surveillance/reports.geojson", headers=vet).json()
+    assert len(geo["features"]) == 1
+    props = geo["features"][0]["properties"]
+    assert props["priority"] == "urgent" and props["zoonotic"] is True
+    assert props["top_signal"] == "Anthrax" and "Malek camp" in props["place"]
+    assert client.get("/api/v1/surveillance/reports.geojson", headers=keeper).status_code == 403
+
+
+def test_dashboard_served(client):
+    resp = client.get("/dashboard")
+    assert resp.status_code == 200 and "LiveLink" in resp.text

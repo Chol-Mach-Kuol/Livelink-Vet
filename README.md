@@ -39,7 +39,7 @@ pip install -r requirements.txt
 
 The app runs out of the box on SQLite. For PostgreSQL, create `.env`:
 
-```
+```dotenv
 DATABASE_URL=postgresql+psycopg://postgres:password@localhost:5432/livelink_vet
 SECRET_KEY=a-long-random-string
 ENVIRONMENT=production          # refuses to start with the default SECRET_KEY
@@ -71,6 +71,11 @@ uvicorn app.main:app --reload
 ```
 
 API docs: <http://127.0.0.1:8000/docs>
+
+Surveillance dashboard: <http://127.0.0.1:8000/dashboard>. It shows a live map of reports and
+outbreak clusters, early-warning alerts and an urgent-report feed, and refreshes every minute.
+Sign in as a verified vet, animal health worker, researcher or admin. After `seed-demo`, the
+demo login is `+211999000000` / `livelink-demo` (`seed-demo` refuses to run in production).
 
 Try USSD locally:
 

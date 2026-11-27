@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiveLink Vet — Surveillance</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #f6f4ef; --panel: #ffffff; --ink: #1f2420; --muted: #6b716a; --line: #e4e0d6;
+    --brand: #2f6b4f; --brand-ink: #ffffff;
+    --urgent: #c0392b; --high: #d9822b; --normal: #4a7a9c; --low: #9aa19a; --zoo: #8e2c6e;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141714; --panel: #1d211d; --ink: #e7e9e4; --muted: #9ca39b; --line: #2d332d;
+      --brand: #5fae86; --brand-ink: #0f1a14; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  header h1 span { color: var(--brand); }
+  header .meta { margin-left: auto; color: var(--muted); font-size: 12px; display: flex; gap: 12px; align-items: center; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  button.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); font-weight: 600; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; padding: 16px 20px; max-width: 1500px; margin: 0 auto; }
+  .tiles { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .tile .label { color: var(--muted); font-size: 12px; }
+  .tile .value { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .tile.alert .value { color: var(--zoo); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0; padding: 12px 14px 8px; font-weight: 600; }
+  #map { height: 620px; }
+  .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .list { max-height: 300px; overflow-y: auto; }
+  .item { padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; }
+  .item:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
+  .item .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+  .item .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .empty { padding: 14px; color: var(--muted); border-top: 1px solid var(--line); }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 99px; color: #fff; white-space: nowrap; }
+  .p-urgent { background: var(--urgent); } .p-high { background: var(--high); } .p-normal { background: var(--normal); } .p-low { background: var(--low); }
+  .p-zoo { background: var(--zoo); }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 14px 12px; color: var(--muted); font-size: 12px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  .note { grid-column: 1 / -1; color: var(--muted); font-size: 12px; text-align: center; padding-bottom: 8px; }
+  #login { max-width: 360px; margin: 10vh auto; padding: 24px; }
+  #login h2 { padding: 0 0 4px; font-size: 18px; text-transform: none; letter-spacing: 0; color: var(--ink); }
+  #login p { color: var(--muted); margin: 0 0 16px; }
+  #login label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  #login input { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  #login button { width: 100%; margin-top: 16px; padding: 9px; }
+  #login .error { color: var(--urgent); min-height: 1.4em; margin-top: 8px; font-size: 13px; }
+  .leaflet-popup-content { font: 13px/1.45 system-ui, sans-serif; }
+  .leaflet-popup-content b { display: block; margin-bottom: 2px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 900px) {
+    main { grid-template-columns: minmax(0, 1fr); padding: 12px 16px; }
+    #map { height: 420px; }
+    header { padding: 12px 16px; }
+    header .meta #updated { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>LiveLink</span> Vet · Surveillance</h1>
+  <div class="meta">
+    <span id="updated"></span>
+    <button id="refresh" hidden>Refresh</button>
+    <button id="logout" hidden>Sign out</button>
+  </div>
+</header>
+
+<form id="login" class="panel" hidden>
+  <h2>Sign in</h2>
+  <p>For verified veterinarians, animal health workers, researchers and admins.</p>
+  <label for="phone">Phone number</label>
+  <input id="phone" autocomplete="username" placeholder="+211…" required>
+  <label for="password">Password</label>
+  <input id="password" type="password" autocomplete="current-password" required>
+  <button class="primary" type="submit">Sign in</button>
+  <div class="error" id="login-error"></div>
+</form>
+
+<main id="app" hidden>
+  <section class="tiles" id="tiles"></section>
+
+  <section class="panel">
+    <h2>Last 30 days</h2>
+    <div id="map"></div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--urgent)"></i>Urgent</span>
+      <span><i class="dot" style="background:var(--high)"></i>High</span>
+      <span><i class="dot" style="background:var(--normal)"></i>Normal</span>
+      <span><i class="dot" style="border:2px solid var(--zoo)"></i>Zoonotic cluster</span>
+      <span><i class="dot" style="border:2px solid var(--high)"></i>Cluster</span>
+    </div>
+  </section>
+
+  <div class="side">
+    <section class="panel">
+      <h2>Early warning</h2>
+      <div class="list" id="alerts"></div>
+    </section>
+    <section class="panel">
+      <h2>Urgent reports</h2>
+      <div class="list" id="urgent"></div>
+    </section>
+  </div>
+
+  <p class="note">Signals are decision support, not diagnoses. Qualified veterinarians make all clinical decisions.</p>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API = "/api/v1";
+const TOKEN_KEY = "livelink_token";
+const $ = (id) => document.getElementById(id);
+const COLORS = () => {
+  const s = getComputedStyle(document.documentElement);
+  return Object.fromEntries(["urgent", "high", "normal", "low", "zoo"].map(k => [k, s.getPropertyValue("--" + k).trim()]));
+};
+
+function getToken() { try { return sessionStorage.getItem(TOKEN_KEY); } catch { return window._token || null; } }
+function setToken(t) { try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); } catch { window._token = t; } }
+
+// Report data comes from the field; never insert it as raw HTML.
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+const fmt = (n) => Number(n || 0).toLocaleString();
+const ago = (iso) => {
+  const mins = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (mins < 60) return `${Math.max(mins, 0)} min ago`;
+  if (mins < 1440) return `${Math.round(mins / 60)} h ago`;
+  return `${Math.round(mins / 1440)} d ago`;
+};
+
+async function api(path) {
+  const res = await fetch(API + path, { headers: { Authorization: "Bearer " + getToken() } });
+  if (res.status === 401) { signOut(); throw new Error("Session expired"); }
+  if (res.status === 403) throw new Error("forbidden");
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res.json();
+}
+
+// ---------------------------------------------------------------- login
+$("login").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("login-error").textContent = "";
+  const res = await fetch(API + "/auth/login", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone_number: $("phone").value.trim(), password: $("password").value }),
+  });
+  if (!res.ok) { $("login-error").textContent = "Phone number or password is incorrect."; return; }
+  setToken((await res.json()).access_token);
+  start();
+});
+
+function signOut() {
+  setToken(null);
+  $("app").hidden = true; $("refresh").hidden = true; $("logout").hidden = true;
+  $("login").hidden = false; $("updated").textContent = "";
+}
+$("logout").onclick = signOut;
+$("refresh").onclick = () => load();
+
+// ------------------------------------------------------------------ map
+let map, reportLayer, clusterLayer, diseaseNames = {};
+
+function initMap() {
+  if (map) return;
+  map = L.map("map", { zoomControl: true }).setView([7.6, 30.5], 6); // South Sudan
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 13, attribution: "&copy; OpenStreetMap contributors",
+  }).addTo(map);
+  clusterLayer = L.layerGroup().addTo(map);
+  reportLayer = L.layerGroup().addTo(map);
+}
+
+function drawMap(reports, clusters) {
+  const c = COLORS();
+  clusterLayer.clearLayers(); reportLayer.clearLayers();
+  const bounds = [];
+
+  for (const f of clusters.features) {
+    const p = f.properties, [lon, lat] = f.geometry.coordinates;
+    const color = p.zoonotic_alert ? c.zoo : c.high;
+    L.circle([lat, lon], {
+      radius: (Math.max(p.radius_km, 10) + 8) * 1000, color, weight: 2.5, fillColor: color, fillOpacity: 0.15,
+    }).bindPopup(
+      `<b>${esc(diseaseNames[p.dominant_signal] || "Unclassified")} cluster</b>` +
+      `${p.report_count} reports · ${fmt(p.animals_affected)} sick · ${fmt(p.deaths)} dead<br>` +
+      `${esc(p.counties.join("; "))}` +
+      (p.zoonotic_alert ? `<br><span class="pill p-zoo">Zoonotic risk</span>` : "")
+    ).addTo(clusterLayer);
+    bounds.push([lat, lon]);
+  }
+
+  // Draw the most serious reports last so they sit on top.
+  const rank = { low: 0, normal: 1, high: 2, urgent: 3 };
+  const ordered = [...reports.features].sort((a, b) =>
+    (rank[a.properties.priority] ?? 1) + a.properties.zoonotic - ((rank[b.properties.priority] ?? 1) + b.properties.zoonotic));
+  for (const f of ordered) {
+    const p = f.properties, [lon, lat] = f.geometry.coordinates;
+    // Small stable offset (from the report id) so reports at one place stay clickable.
+    const h = [...p.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+    const dLat = ((h % 1000) / 1000 - 0.5) * 0.03, dLon = (((h >>> 10) % 1000) / 1000 - 0.5) * 0.03;
+    L.circleMarker([lat + dLat, lon + dLon], {
+      radius: 4 + Math.min(Math.sqrt(p.affected), 6), color: "#fff", weight: 1,
+      fillColor: c[p.priority] || c.normal, fillOpacity: 0.9,
+    }).bindPopup(
+      `<b>${esc(p.top_signal || "No clear signal")}</b>` +
+      `${fmt(p.affected)} ${esc(p.species)} sick · ${fmt(p.deaths)} dead<br>${esc(p.place)}<br>` +
+      `<span class="pill p-${esc(p.priority)}">${esc(p.priority)}</span> ` +
+      (p.zoonotic ? `<span class="pill p-zoo">Zoonotic</span> ` : "") +
+      `<span style="color:var(--muted)">${esc(p.channel)} · ${ago(p.created_at)}</span>`
+    ).addTo(reportLayer);
+    bounds.push([lat, lon]);
+  }
+  if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 9 });
+}
+
+// ---------------------------------------------------------------- panels
+function drawTiles(s, alerts) {
+  const tiles = [
+    ["Reports", s.total_reports],
+    ["Animals sick", s.animals_affected],
+    ["Animal deaths", s.animal_deaths],
+    ["Open cases", s.open_cases],
+    ["Active clusters", alerts.summary.active_clusters],
+    ["Zoonotic alerts", s.zoonotic_alerts, s.zoonotic_alerts > 0],
+  ];
+  $("tiles").innerHTML = tiles.map(([label, value, hot]) =>
+    `<div class="tile${hot ? " alert" : ""}"><div class="label">${label}</div><div class="value">${fmt(value)}</div></div>`
+  ).join("");
+}
+
+function drawAlerts(alerts) {
+  const rows = [];
+  for (const c of alerts.spatial_clusters) {
+    rows.push({
+      html: `<div class="top"><span>${esc(diseaseNames[c.dominant_signal] || "Unclassified")} cluster</span>` +
+        (c.zoonotic_alert ? `<span class="pill p-zoo">Zoonotic</span>` : `<span class="pill p-high">Cluster</span>`) + `</div>` +
+        `<div class="sub">${c.report_count} reports · ${fmt(c.deaths)} deaths · ${esc(c.counties.join("; "))}</div>`,
+      at: [c.centroid.latitude, c.centroid.longitude],
+    });
+  }
+  for (const a of alerts.temporal_aberrations) {
+    rows.push({
+      html: `<div class="top"><span>Spike in ${esc(a.county)}</span><span class="pill p-urgent">EARS-C2 ${a.score}</span></div>` +
+        `<div class="sub">${a.reports_today} reports today vs ~${a.baseline_mean}/day baseline · ${esc(a.state)}</div>`,
+    });
+  }
+  renderList("alerts", rows, "No clusters or spikes detected.");
+}
+
+function drawUrgent(reports) {
+  const rows = reports.features
+    .filter(f => f.properties.priority === "urgent")
+    .slice(0, 30)
+    .map(f => {
+      const p = f.properties, [lon, lat] = f.geometry.coordinates;
+      return {
+        html: `<div class="top"><span>${esc(p.top_signal || "High mortality")}</span>` +
+          (p.zoonotic ? `<span class="pill p-zoo">Zoonotic</span>` : `<span class="pill p-urgent">Urgent</span>`) + `</div>` +
+          `<div class="sub">${fmt(p.affected)} ${esc(p.species)} sick, ${fmt(p.deaths)} dead · ${esc(p.place)} · ${ago(p.created_at)}</div>`,
+        at: [lat, lon],
+      };
+    });
+  renderList("urgent", rows, "No urgent reports in the last 30 days.");
+}
+
+function renderList(id, rows, emptyText) {
+  const el = $(id);
+  if (!rows.length) { el.innerHTML = `<div class="empty">${emptyText}</div>`; return; }
+  el.innerHTML = rows.map((r, i) => `<div class="item" data-i="${i}">${r.html}</div>`).join("");
+  el.querySelectorAll(".item").forEach(node => {
+    const r = rows[node.dataset.i];
+    if (r.at) node.onclick = () => map.setView(r.at, 10);
+  });
+}
+
+// ------------------------------------------------------------------ load
+async function load() {
+  $("updated").textContent = "Updating…";
+  try {
+    const [summary, alerts, reports, clusters] = await Promise.all([
+      api("/analytics/summary").catch(e => e.message === "forbidden" ? null : Promise.reject(e)),
+      api("/surveillance/alerts"),
+      api("/surveillance/reports.geojson?days=30"),
+      api("/surveillance/clusters.geojson"),
+    ]);
+    // Animal health workers can see alerts but not the analytics summary.
+    drawTiles(summary || {
+      total_reports: reports.features.length,
+      animals_affected: reports.features.reduce((a, f) => a + f.properties.affected, 0),
+      animal_deaths: reports.features.reduce((a, f) => a + f.properties.deaths, 0),
+      zoonotic_alerts: reports.features.filter(f => f.properties.zoonotic).length,
+      open_cases: "–",
+    }, alerts);
+    drawAlerts(alerts);
+    drawUrgent(reports);
+    drawMap(reports, clusters);
+    $("updated").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch (e) {
+    if (e.message === "forbidden") {
+      signOut();
+      $("login-error").textContent = "This account does not have a verified professional role yet.";
+    } else {
+      $("updated").textContent = "Could not refresh — check your connection";
+    }
+  }
+}
+
+async function start() {
+  $("login").hidden = true; $("app").hidden = false;
+  $("refresh").hidden = false; $("logout").hidden = false;
+  initMap();
+  setTimeout(() => map.invalidateSize(), 0);
+  if (!Object.keys(diseaseNames).length) {
+    try {
+      const ref = await fetch(API + "/reports/signs").then(r => r.json());
+      diseaseNames = Object.fromEntries(ref.diseases.map(d => [d.code, d.name]));
+    } catch { /* names fall back to "Unclassified" */ }
+  }
+  await load();
+}
+
+setInterval(() => { if (getToken() && !document.hidden) load(); }, 60000);
+getToken() ? start() : signOut();
+</script>
+</body>
+</html>

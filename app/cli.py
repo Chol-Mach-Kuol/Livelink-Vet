@@ -1,7 +1,7 @@
 """Admin tooling.
 
     python -m app.cli create-admin --name "Jane Doe" --phone +211900000000
-    python -m app.cli seed-demo      # sample locations and reports for a demo
+    python -m app.cli seed-demo      # sample data + a demo vet login (not in production)
 """
 import argparse
 import getpass
@@ -9,6 +9,7 @@ import random
 from datetime import datetime, timedelta, timezone
 
 import app.models  # noqa: F401
+from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.security import hash_password
 from app.models.disease_report import DiseaseReport
@@ -48,10 +49,22 @@ def create_admin(name: str, phone: str) -> None:
     print(f"Admin ready: {phone}")
 
 
+DEMO_VET_PHONE = "+211999000000"
+DEMO_VET_PASSWORD = "livelink-demo"
+
+
 def seed_demo() -> None:
+    if settings.ENVIRONMENT == "production":
+        raise SystemExit("seed-demo is disabled in production (it creates a known demo login).")
     Base.metadata.create_all(bind=engine)
     rng = random.Random(42)
     with SessionLocal() as db:
+        if not db.query(User).filter(User.phone_number == DEMO_VET_PHONE).first():
+            vet = User(full_name="Demo Veterinarian", phone_number=DEMO_VET_PHONE,
+                       password_hash=hash_password(DEMO_VET_PASSWORD))
+            db.add(vet)
+            db.flush()
+            db.add(RoleAssignment(user_id=vet.id, role="veterinarian", verified=True))
         locs = []
         for data in DEMO_LOCATIONS:
             loc = db.query(Location).filter_by(state=data["state"], county=data["county"], payam=data["payam"]).first()
@@ -90,6 +103,7 @@ def seed_demo() -> None:
             created += new
         db.commit()
     print(f"Seeded {len(locs)} locations and {created} reports (idempotent; re-running adds nothing).")
+    print(f"Demo dashboard login: {DEMO_VET_PHONE} / {DEMO_VET_PASSWORD}  ->  http://127.0.0.1:8000/dashboard")
 
 
 def main() -> None:

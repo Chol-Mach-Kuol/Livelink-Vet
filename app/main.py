@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 import app.models  # noqa: F401  (registers all tables)
 from app.core.database import Base, engine
@@ -36,6 +38,15 @@ for module in (auth, locations, reports, cases, diagnoses, surveillance, analyti
     app.include_router(module.router, prefix=PREFIX)
 
 
+DASHBOARD = Path(__file__).parent / "static" / "dashboard.html"
+
+
 @app.get("/", tags=["health"])
 def root():
-    return {"message": "LiveLink Vet API is running.", "docs": "/docs"}
+    return {"message": "LiveLink Vet API is running.", "docs": "/docs", "dashboard": "/dashboard"}
+
+
+@app.get("/dashboard", include_in_schema=False)
+def dashboard():
+    """Surveillance map for verified professionals (data is fetched with their token)."""
+    return FileResponse(DASHBOARD, media_type="text/html")
