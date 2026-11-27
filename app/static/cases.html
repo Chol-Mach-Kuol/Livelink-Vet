@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cases · LiveLink Vet</title>
+<meta name="theme-color" content="#1f6a4a">
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+  main { max-width: 1400px; margin: 0 auto; padding: 18px 20px 40px; }
+  .head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .head h1 { font-family: var(--display); font-size: clamp(22px, 3vw, 30px); }
+  .layout { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 16px; align-items: start; }
+
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px; border-bottom: 1px solid var(--line); }
+  .fchip { border: 1px solid var(--line); background: var(--bg); color: var(--ink-2); border-radius: 99px; padding: 6px 11px; font: 600 12px var(--sans); cursor: pointer; }
+  .fchip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .clist { max-height: calc(100vh - 230px); overflow-y: auto; }
+  .citem { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--ink); padding: 12px 14px; cursor: pointer; font: inherit; border-left: 3px solid transparent; }
+  .citem:first-child { border-top: 0; }
+  .citem:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
+  .citem[aria-current="true"] { background: var(--brand-soft); border-left-color: var(--brand); }
+  .citem .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .citem .num { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .citem .sub { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--bg-2); color: var(--ink-2); text-transform: capitalize; white-space: nowrap; }
+
+  .detail { padding: 22px; min-height: 420px; }
+  .dhead { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 10px; }
+  .dhead h2 { font-family: var(--display); font-size: 26px; }
+  .dhead .place { color: var(--muted); margin-top: 4px; }
+  .back { display: none; margin-bottom: 12px; }
+
+  /* lifecycle tracker */
+  .track { display: grid; grid-template-columns: repeat(7, 1fr); margin: 22px 0 8px; position: relative; }
+  .track::before { content: ""; position: absolute; left: 7%; right: 7%; top: 13px; height: 3px; background: var(--line); border-radius: 3px; }
+  .track .fill { position: absolute; left: 7%; top: 13px; height: 3px; background: var(--brand); border-radius: 3px; transition: width .5s ease; }
+  .stage { position: relative; text-align: center; font-size: 11px; color: var(--muted); font-weight: 600; text-transform: capitalize; }
+  .stage i { display: grid; place-items: center; width: 28px; height: 28px; margin: 0 auto 6px; border-radius: 50%; background: var(--panel); border: 3px solid var(--line); font-style: normal; font-size: 12px; position: relative; z-index: 1; }
+  .stage.done i { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .stage.now i { border-color: var(--brand); box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand) 22%, transparent); }
+  .stage.now { color: var(--ink); }
+
+  .moves { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 4px; }
+  .moves input { flex: 1 1 220px; min-height: 36px; padding: 7px 10px; font-size: 14px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+  .box { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--bg); min-width: 0; }
+  .box h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .entry { padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .entry:first-of-type { border-top: 0; }
+  .entry .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .none { color: var(--muted); font-size: 14px; }
+  form.inline { display: grid; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  form.inline .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  form.inline input, form.inline select, form.inline textarea { min-height: 38px; padding: 7px 10px; font-size: 14px; }
+  form.inline textarea { min-height: 60px; }
+
+  .timeline { position: relative; margin-top: 4px; }
+  .tl { position: relative; padding: 0 0 14px 22px; font-size: 14px; }
+  .tl::before { content: ""; position: absolute; left: 6px; top: 6px; bottom: -6px; width: 2px; background: var(--line); }
+  .tl:last-child::before { display: none; }
+  .tl::after { content: ""; position: absolute; left: 1px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--panel); border: 2px solid var(--brand); }
+  .tl .sub { color: var(--muted); font-size: 12px; }
+
+  .empty-detail { display: grid; place-items: center; text-align: center; color: var(--muted); min-height: 380px; }
+  .empty-detail svg { color: var(--line); margin-bottom: 10px; }
+  .login { max-width: 400px; margin: 10vh auto; padding: 28px; }
+  .login h1 { font-family: var(--display); font-size: 26px; margin-bottom: 6px; }
+  .login .btn { width: 100%; margin-top: 18px; padding: 13px; }
+  .error { color: var(--urgent); min-height: 1.2em; margin-top: 8px; font-size: 13px; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; z-index: 1100; background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; transition: all .3s; pointer-events: none; max-width: calc(100vw - 32px); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 960px) {
+    main { padding: 14px 16px 32px; }
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .layout.show-detail .listcol { display: none; }
+    .layout:not(.show-detail) .detail { display: none; }
+    .back { display: inline-flex; }
+    .clist { max-height: none; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .detail { padding: 16px; }
+    .track .stage span { display: none; }
+    .track .stage.now span { display: block; position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+    .track { margin-bottom: 24px; }
+    form.inline .two { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><img src="/static/logo.svg" alt=""><span><b>LiveLink</b> Vet</span></a>
+  <nav>
+    <a href="/dashboard" class="hide-sm">Dashboard</a>
+    <a href="/cases" aria-current="page">Cases</a>
+    <a href="/admin" data-roles="admin" hidden>Admin</a>
+    <button class="btn icon-btn ghost" id="theme"></button>
+    <button class="btn small ghost" id="logout" hidden>Sign out</button>
+  </nav>
+</header>
+
+<form id="login" class="login card" hidden>
+  <h1>Cases</h1>
+  <p class="muted">Sign in to see and manage cases.</p>
+  <label class="field" for="phone">Phone number</label>
+  <input id="phone" name="phone" autocomplete="username" inputmode="tel" placeholder="+211…" required>
+  <label class="field" for="password">Password</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" required>
+  <button class="btn primary" type="submit">Sign in</button>
+  <div class="error" role="alert"></div>
+</form>
+
+<main id="app" hidden>
+  <div class="head">
+    <div><div class="eyebrow">Case management</div><h1>Cases</h1></div>
+    <a class="btn small" href="/dashboard">Open a case from a cluster →</a>
+  </div>
+  <div class="layout" id="layout">
+    <section class="card listcol" style="overflow:hidden">
+      <div class="filters" id="filters"></div>
+      <div class="clist" id="clist"></div>
+    </section>
+    <section class="card detail" id="detail" aria-live="polite"></section>
+  </div>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/static/common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const { esc, fmt, ago, humanize } = LL;
+LL.initThemeToggle($("theme"));
+
+const STAGES = ["open", "investigating", "awaiting_lab", "diagnosed", "monitoring", "resolved", "closed"];
+const FILTERS = [["active", "Active"], ["open", "Open"], ["investigating", "Investigating"], ["awaiting_lab", "Awaiting lab"],
+                 ["diagnosed", "Diagnosed"], ["monitoring", "Monitoring"], ["resolved", "Resolved"], ["closed", "Closed"], ["all", "All"]];
+const PRIO = { urgent: 0, high: 1, normal: 2, low: 3 };
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+let cases = [], places = {}, lifecycle = {}, diseases = [], roles = new Set(), filter = "active", selected = null;
+
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600); }
+const canManage = () => roles.has("veterinarian") || roles.has("admin");
+const canDiagnose = () => roles.has("veterinarian");
+const placeOf = (id) => places[id] || "Unknown place";
+
+// ---------------- list ----------------
+function renderFilters() {
+  const counts = Object.fromEntries(FILTERS.map(([k]) => [k, cases.filter(c => matches(c, k)).length]));
+  $("filters").innerHTML = FILTERS.map(([k, label]) =>
+    `<button class="fchip" data-f="${k}" aria-pressed="${filter === k}">${label} ${counts[k] ? `· ${counts[k]}` : ""}</button>`).join("");
+  $("filters").querySelectorAll(".fchip").forEach(b => b.onclick = () => { filter = b.dataset.f; renderFilters(); renderList(); });
+}
+function matches(c, f) {
+  if (f === "all") return true;
+  if (f === "active") return !["resolved", "closed"].includes(c.case_status);
+  return c.case_status === f;
+}
+function renderList() {
+  const rows = cases.filter(c => matches(c, filter))
+    .sort((a, b) => (PRIO[a.priority] - PRIO[b.priority]) || (new Date(b.opened_at) - new Date(a.opened_at)));
+  $("clist").innerHTML = rows.length ? rows.map(c => `
+    <button class="citem" data-id="${c.id}" aria-current="${selected === c.id}">
+      <div class="row"><span class="num">${esc(c.case_number)}</span><span class="pill p-${esc(c.priority)}">${esc(c.priority)}</span></div>
+      <div class="row" style="margin-top:4px"><span class="sub">${esc(placeOf(c.location_id))}</span><span class="status">${esc(humanize(c.case_status))}</span></div>
+      <div class="sub">Opened ${ago(c.opened_at)}</div>
+    </button>`).join("")
+    : `<div class="none" style="padding:16px">No cases here.${canManage() ? " Open one from a cluster on the dashboard." : ""}</div>`;
+  $("clist").querySelectorAll(".citem").forEach(b => b.onclick = () => select(b.dataset.id));
+}
+
+// ---------------- detail ----------------
+function emptyDetail() {
+  $("detail").innerHTML = `<div class="empty-detail"><div>
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+    <div>Choose a case to see its reports, diagnoses and history.</div></div></div>`;
+}
+async function select(id, push = true) {
+  selected = id; renderList();
+  $("layout").classList.add("show-detail");
+  if (push) history.replaceState(null, "", `/cases?id=${id}`);
+  $("detail").innerHTML = `<div class="none">Loading…</div>`;
+  try {
+    const [c, reports, diags, labs, timeline] = await Promise.all([
+      LL.api(`/cases/${id}`), LL.api(`/cases/${id}/reports`), LL.api(`/cases/${id}/diagnoses`),
+      LL.api(`/cases/${id}/lab-results`), LL.api(`/cases/${id}/timeline`),
+    ]);
+    const i = cases.findIndex(x => x.id === id); if (i >= 0) cases[i] = c; else cases.unshift(c);
+    renderFilters(); renderList(); renderDetail(c, reports, diags, labs, timeline);
+  } catch (e) {
+    $("detail").innerHTML = `<div class="none">${e.status === 404 ? "This case does not exist or you cannot see it." : "Could not load the case."}</div>`;
+  }
+}
+
+function tracker(status) {
+  const idx = STAGES.indexOf(status);
+  const pct = idx <= 0 ? 0 : (idx / (STAGES.length - 1)) * 86;
+  return `<div class="track"><div class="fill" style="width:${pct}%"></div>${STAGES.map((s, i) =>
+    `<div class="stage ${i < idx ? "done" : i === idx ? "now" : ""}"><i>${i < idx ? "✓" : i + 1}</i><span>${humanize(s)}</span></div>`).join("")}</div>`;
+}
+const ACTION_TEXT = {
+  "case.opened": "Case opened", "case.status_changed": "Status changed", "case.report_linked": "Report linked",
+  "case.diagnosis_recorded": "Diagnosis recorded", "case.lab_result_added": "Lab result added", "case.collaborator_assigned": "Collaborator assigned",
+};
+function timelineText(e) {
+  const d = e.details || {};
+  if (e.action === "case.status_changed") return `${humanize(d.from)} → <b>${humanize(d.to)}</b>${d.note ? ` · “${esc(d.note)}”` : ""}`;
+  if (e.action === "case.diagnosis_recorded") return `${esc(d.disease || "Unnamed")} · ${humanize(d.status)}`;
+  if (e.action === "case.lab_result_added") return esc(d.test || "Test");
+  if (e.action === "case.opened") return `Priority ${esc(d.priority)}`;
+  return "";
+}
+
+function renderDetail(c, reports, diags, labs, timeline) {
+  const next = [...(lifecycle[c.case_status] || [])].sort((x, y) => STAGES.indexOf(x) - STAGES.indexOf(y));
+  $("detail").innerHTML = `
+    <button class="btn small ghost back" id="back">← All cases</button>
+    <div class="dhead">
+      <div><h2>${esc(c.case_number)}</h2><div class="place">${esc(placeOf(c.location_id))} · opened ${ago(c.opened_at)}${c.closed_at ? ` · closed ${ago(c.closed_at)}` : ""}</div></div>
+      <div style="display:flex;gap:6px;align-items:center"><span class="pill p-${esc(c.priority)}">${esc(c.priority)} priority</span></div>
+    </div>
+    ${tracker(c.case_status)}
+    ${canManage() && next.length ? `<div class="moves"><span class="muted" style="font-size:13px;font-weight:600">Move to:</span>
+      ${next.map(s => `<button class="btn small ${s === "closed" ? "" : "primary"}" data-move="${s}">${cap(humanize(s))}</button>`).join("")}
+      <input id="move-note" placeholder="Note (optional)" maxlength="2000"></div>` : ""}
+    <div class="grid2">
+      <div class="box"><h3>Linked reports <span>${reports.length}</span></h3>
+        ${reports.length ? reports.map(r => `<div class="entry">
+          <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(r.triage?.signals?.[0]?.name || "No clear signal")}</b>
+          ${r.zoonotic_alert ? '<span class="pill p-zoo">Risk to people</span>' : `<span class="pill p-${esc(r.suggested_priority)}">${esc(r.suggested_priority)}</span>`}</div>
+          <div class="sub">${r.affected_count} ${esc(r.species)} sick, ${r.death_count} dead · ${esc(placeOf(r.location_id))} · ${esc(r.channel)} · ${ago(r.created_at)}</div>
+          <div class="sub">“${esc(r.symptoms)}”</div></div>`).join("") : '<div class="none">No reports linked.</div>'}
+      </div>
+      <div class="box"><h3>Diagnoses <span>${diags.length}</span></h3>
+        ${diags.length ? diags.map(d => `<div class="entry"><b>${esc(d.disease_name || "Unnamed")}</b> <span class="status">${esc(humanize(d.diagnosis_status))}</span>
+          <div class="sub">${esc(humanize(d.diagnostic_method || "method not given"))} · ${ago(d.diagnosed_at)}</div>
+          ${d.clinical_notes ? `<div class="sub">${esc(d.clinical_notes)}</div>` : ""}</div>`).join("") : '<div class="none">No diagnosis yet.</div>'}
+        ${canDiagnose() && c.case_status !== "closed" ? `<form class="inline" id="diag-form">
+          <input name="disease_name" list="disease-list" placeholder="Disease (e.g. Anthrax)" maxlength="150">
+          <datalist id="disease-list">${diseases.map(d => `<option value="${esc(d)}">`).join("")}</datalist>
+          <div class="two"><select name="diagnosis_status" required>
+            <option value="suspected">Suspected</option><option value="provisional">Provisional</option>
+            <option value="confirmed">Confirmed</option><option value="ruled_out">Ruled out</option></select>
+          <select name="diagnostic_method"><option value="clinical_examination">Clinical examination</option>
+            <option value="laboratory_test">Laboratory test</option><option value="epidemiological_investigation">Epidemiological investigation</option>
+            <option value="other">Other</option></select></div>
+          <textarea name="clinical_notes" placeholder="Clinical notes"></textarea>
+          <button class="btn small primary" type="submit">Record diagnosis</button></form>` : ""}
+      </div>
+      <div class="box"><h3>Lab results <span>${labs.length}</span></h3>
+        ${labs.length ? labs.map(l => `<div class="entry"><b>${esc(l.test_name || "Test")}</b>${l.sample_type ? ` · ${esc(l.sample_type)}` : ""}
+          <div>${esc(l.result)}</div><div class="sub">${esc(l.laboratory_name || "Lab not given")} · ${ago(l.result_date || l.created_at)}</div></div>`).join("")
+          : '<div class="none">No lab results.</div>'}
+        ${canManage() && c.case_status !== "closed" ? `<form class="inline" id="lab-form">
+          <div class="two"><input name="test_name" placeholder="Test (e.g. PCR)"><input name="sample_type" placeholder="Sample (e.g. blood smear)"></div>
+          <input name="laboratory_name" placeholder="Laboratory">
+          <textarea name="result" placeholder="Result" required></textarea>
+          <button class="btn small primary" type="submit">Add lab result</button></form>` : ""}
+      </div>
+      <div class="box"><h3>History</h3><div class="timeline">
+        ${timeline.length ? timeline.map(e => `<div class="tl"><b>${ACTION_TEXT[e.action] || esc(humanize(e.action))}</b> ${timelineText(e) ? "· " + timelineText(e) : ""}
+          <div class="sub">${new Date(e.at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div></div>`).join("") : '<div class="none">No history yet.</div>'}
+      </div></div>
+    </div>`;
+
+  $("back").onclick = () => { $("layout").classList.remove("show-detail"); selected = null; renderList(); history.replaceState(null, "", "/cases"); };
+  $("detail").querySelectorAll("[data-move]").forEach(b => b.onclick = async () => {
+    const to = b.dataset.move;
+    if (to === "closed" && !confirm("Close this case? Closed cases cannot be reopened, and linked reports are closed too.")) return;
+    try {
+      await LL.api(`/cases/${c.id}/status`, { method: "PATCH", body: JSON.stringify({ case_status: to, note: $("move-note").value.trim() || null }) });
+      toast(`Moved to ${humanize(to)}`); select(c.id, false);
+    } catch (e) { toast(e.detail || "Could not change status"); }
+  });
+  const df = $("diag-form");
+  if (df) df.onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(df));
+    Object.keys(f).forEach(k => { if (!f[k]) f[k] = null; });
+    try { await LL.api(`/cases/${c.id}/diagnoses`, { method: "POST", body: JSON.stringify(f) }); toast("Diagnosis recorded"); select(c.id, false); }
+    catch (ex) { toast("Could not save the diagnosis"); }
+  };
+  const lf = $("lab-form");
+  if (lf) lf.onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(lf));
+    Object.keys(f).forEach(k => { if (!f[k]) f[k] = null; });
+    try { await LL.api(`/cases/${c.id}/lab-results`, { method: "POST", body: JSON.stringify(f) }); toast("Lab result added"); select(c.id, false); }
+    catch (ex) { toast("Could not save the lab result"); }
+  };
+}
+
+// ---------------- start ----------------
+LL.mountLogin($("login"), start);
+$("logout").onclick = () => { LL.signOut(); location.href = "/cases"; };
+async function start() {
+  $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
+  try {
+    const [me, list, locs, lc, ref] = await Promise.all([
+      LL.me(), LL.api("/cases?limit=200"), LL.api("/locations?limit=500"), LL.api("/cases/lifecycle"), LL.api("/reports/signs"),
+    ]);
+    roles = LL.rolesOf(me); cases = list; lifecycle = lc;
+    places = Object.fromEntries(locs.map(p => [p.id, [p.cattle_camp, p.payam, p.county, p.state].filter(Boolean).join(", ")]));
+    diseases = ref.diseases.map(d => d.name);
+    LL.gateNav(); renderFilters(); renderList();
+    const id = new URLSearchParams(location.search).get("id");
+    if (id) { if (!cases.some(c => c.id === id)) filter = "all"; renderFilters(); select(id, false); } else emptyDetail();
+  } catch (e) {
+    if (e.status === 401) { LL.signOut(); $("app").hidden = true; $("login").hidden = false; }
+    else $("detail").innerHTML = '<div class="none">Could not load cases. Check your connection.</div>';
+  }
+}
+LL.token() ? start() : ($("login").hidden = false);
+</script>
+</body>
+</html>

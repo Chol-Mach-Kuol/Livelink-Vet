@@ -105,6 +105,12 @@ def list_cases(
     return query.order_by(Case.opened_at.desc()).offset(skip).limit(limit).all()
 
 
+@router.get("/lifecycle")
+def lifecycle(current_user: User = Depends(get_current_user)):
+    """Allowed status transitions, so clients only offer valid next steps."""
+    return {status: sorted(nxt) for status, nxt in case_service.TRANSITIONS.items()}
+
+
 @router.get("/{case_id}", response_model=CaseOut)
 def get_case(case_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return get_visible_case(db, case_id, current_user)

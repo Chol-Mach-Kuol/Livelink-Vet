@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · LiveLink Vet</title>
+<meta name="theme-color" content="#1f6a4a">
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+  main { max-width: 1180px; margin: 0 auto; padding: 18px 20px 40px; }
+  .head { margin-bottom: 16px; }
+  .head h1 { font-family: var(--display); font-size: clamp(22px, 3vw, 30px); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; overflow-x: auto; scrollbar-width: none; }
+  .tab { border: 0; background: none; color: var(--muted); font: 600 14px var(--sans); padding: 10px 14px; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; display: inline-flex; gap: 8px; align-items: center; }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--brand); }
+  .count { background: var(--accent); color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 7px; }
+
+  .pending { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .person { padding: 18px; display: flex; flex-direction: column; gap: 12px; transition: opacity .3s, transform .3s; }
+  .person.leaving { opacity: 0; transform: scale(.97); }
+  .who { display: flex; gap: 12px; align-items: center; }
+  .avatar { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; font-weight: 700; color: #fff; flex: none; font-size: 16px; }
+  .who .name { font-weight: 700; font-size: 16px; }
+  .who .sub { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .claim { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+  .claim b { text-transform: capitalize; }
+  .claim .why { color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+  .actions { display: flex; gap: 8px; }
+  .actions .btn { flex: 1; }
+
+  .toolbar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar input { flex: 1 1 260px; }
+  table.users { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.users th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  table.users td { padding: 12px 14px; border-top: 1px solid var(--line); vertical-align: middle; }
+  .role { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--brand-soft); color: var(--brand); margin: 2px 4px 2px 0; text-transform: capitalize; }
+  .role.wait { background: var(--accent-soft); color: var(--accent); }
+  .inactive { opacity: .55; }
+
+  .feed .row { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 14px; }
+  .feed .row:first-child { border-top: 0; }
+  .feed .when { color: var(--muted); font-size: 12px; }
+  .feed .sub { color: var(--muted); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+  .s-sent { background: var(--brand); } .s-logged { background: var(--normal); } .s-failed { background: var(--urgent); } .s-pending { background: var(--low); }
+
+  .empty { padding: 40px 20px; text-align: center; color: var(--muted); }
+  .empty .big { font-size: 34px; margin-bottom: 6px; }
+  .login { max-width: 400px; margin: 10vh auto; padding: 28px; }
+  .login h1 { font-family: var(--display); font-size: 26px; margin-bottom: 6px; }
+  .login .btn { width: 100%; margin-top: 18px; padding: 13px; }
+  .error { color: var(--urgent); min-height: 1.2em; margin-top: 8px; font-size: 13px; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; z-index: 1100; background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; transition: all .3s; pointer-events: none; max-width: calc(100vw - 32px); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 720px) {
+    main { padding: 14px 16px 32px; }
+    table.users thead { display: none; }
+    table.users tr { display: block; border-top: 1px solid var(--line); padding: 10px 14px; }
+    table.users td { display: block; border: 0; padding: 3px 0; }
+    .feed .row { grid-template-columns: 1fr; gap: 2px; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><img src="/static/logo.svg" alt=""><span><b>LiveLink</b> Vet</span></a>
+  <nav>
+    <a href="/dashboard" class="hide-sm">Dashboard</a>
+    <a href="/cases">Cases</a>
+    <a href="/admin" aria-current="page">Admin</a>
+    <button class="btn icon-btn ghost" id="theme"></button>
+    <button class="btn small ghost" id="logout" hidden>Sign out</button>
+  </nav>
+</header>
+
+<form id="login" class="login card" hidden>
+  <h1>Admin</h1>
+  <p class="muted">For platform administrators.</p>
+  <label class="field" for="phone">Phone number</label>
+  <input id="phone" name="phone" autocomplete="username" inputmode="tel" placeholder="+211…" required>
+  <label class="field" for="password">Password</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" required>
+  <button class="btn primary" type="submit">Sign in</button>
+  <div class="error" role="alert"></div>
+</form>
+
+<main id="app" hidden>
+  <div class="head"><div class="eyebrow">Administration</div><h1>People &amp; activity</h1></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="pending" aria-selected="true">Waiting for approval <span class="count" id="pending-count" hidden></span></button>
+    <button class="tab" role="tab" data-tab="users" aria-selected="false">All people</button>
+    <button class="tab" role="tab" data-tab="audit" aria-selected="false">Activity log</button>
+    <button class="tab" role="tab" data-tab="sms" aria-selected="false">SMS alerts</button>
+  </div>
+  <section id="pane-pending"></section>
+  <section id="pane-users" hidden>
+    <div class="toolbar"><input id="search" placeholder="Search by name, phone or email…" aria-label="Search people"></div>
+    <div class="card" style="overflow:hidden"><table class="users"><thead><tr><th>Person</th><th>Roles</th><th>Joined</th><th></th></tr></thead><tbody id="users"></tbody></table></div>
+  </section>
+  <section id="pane-audit" class="card feed" hidden></section>
+  <section id="pane-sms" class="card feed" hidden></section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/static/common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const { esc, ago, humanize } = LL;
+LL.initThemeToggle($("theme"));
+let me = null;
+
+const WHY = {
+  veterinarian: "Can open cases, record diagnoses and see all reports.",
+  animal_health_worker: "Can see all reports, alerts and cases.",
+  researcher: "Can export anonymised data and see analytics.",
+  student: "Can see only cases they are assigned to.",
+};
+const COLORS = ["#1f6a4a", "#c7731f", "#4a7a9c", "#8e2c6e", "#6b5b2e", "#2f8a62"];
+const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("") || "?";
+const colorFor = (s) => COLORS[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600); }
+
+// ---------------- tabs ----------------
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.tab));
+function showTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
+  ["pending", "users", "audit", "sms"].forEach(p => $("pane-" + p).hidden = p !== name);
+  ({ pending: loadPending, users: loadUsers, audit: loadAudit, sms: loadSms })[name]();
+}
+
+// ---------------- pending approvals ----------------
+async function loadPending() {
+  const users = await LL.api("/users?pending_verification=true&limit=200");
+  const claims = users.flatMap(u => u.roles.filter(r => !r.verified).map(r => ({ u, role: r.role })));
+  $("pending-count").hidden = !claims.length; $("pending-count").textContent = claims.length;
+  $("pane-pending").innerHTML = claims.length ? `<div class="pending">${claims.map(({ u, role }) => `
+    <div class="person card" data-user="${u.id}" data-role="${esc(role)}">
+      <div class="who"><div class="avatar" style="background:${colorFor(u.full_name)}">${esc(initials(u.full_name))}</div>
+        <div><div class="name">${esc(u.full_name)}</div><div class="sub">${esc(u.phone_number)}${u.email ? " · " + esc(u.email) : ""}</div>
+        <div class="sub">Joined ${u.created_at ? ago(u.created_at) : "recently"}</div></div></div>
+      <div class="claim">Asks to be a <b>${esc(humanize(role))}</b><div class="why">${WHY[role] || ""}</div></div>
+      <div class="actions"><button class="btn" data-act="reject">Decline</button><button class="btn primary" data-act="verify">Approve</button></div>
+    </div>`).join("")}</div>`
+    : `<div class="empty card"><div class="big">✓</div>No one is waiting for approval.</div>`;
+  $("pane-pending").querySelectorAll(".person").forEach(card => card.querySelectorAll("[data-act]").forEach(b => b.onclick = async () => {
+    const { user, role } = card.dataset, act = b.dataset.act;
+    if (act === "reject" && !confirm(`Decline the ${humanize(role)} role? They keep a basic account.`)) return;
+    b.disabled = true;
+    try {
+      await LL.api(`/users/${user}/${act === "verify" ? "verify-role" : "reject-role"}/${role}`, { method: "POST" });
+      card.classList.add("leaving");
+      toast(act === "verify" ? `Approved as ${humanize(role)}` : "Declined");
+      setTimeout(loadPending, 300);
+    } catch { b.disabled = false; toast("Something went wrong. Try again."); }
+  }));
+}
+
+// ---------------- all people ----------------
+let searchT;
+$("search").addEventListener("input", () => { clearTimeout(searchT); searchT = setTimeout(loadUsers, 250); });
+async function loadUsers() {
+  const q = $("search").value.trim();
+  const users = await LL.api(`/users?limit=200${q ? "&q=" + encodeURIComponent(q) : ""}`);
+  $("users").innerHTML = users.length ? users.map(u => `
+    <tr class="${u.is_active ? "" : "inactive"}">
+      <td><div class="who"><div class="avatar" style="background:${colorFor(u.full_name)};width:36px;height:36px;font-size:13px;border-radius:11px">${esc(initials(u.full_name))}</div>
+        <div><div style="font-weight:600">${esc(u.full_name)}${u.is_active ? "" : ' <span class="muted">(deactivated)</span>'}</div><div class="sub">${esc(u.phone_number)}</div></div></div></td>
+      <td>${u.roles.map(r => `<span class="role ${r.verified ? "" : "wait"}">${r.verified ? "✓" : "…"} ${esc(humanize(r.role))}</span>`).join("")}</td>
+      <td class="muted">${u.created_at ? ago(u.created_at) : ""}</td>
+      <td style="text-align:right">${u.id === me.id ? '<span class="muted">You</span>'
+        : `<button class="btn small" data-toggle="${u.id}" data-active="${u.is_active}">${u.is_active ? "Deactivate" : "Reactivate"}</button>`}</td>
+    </tr>`).join("") : `<tr><td colspan="4" class="empty">No one matches “${esc(q)}”.</td></tr>`;
+  $("users").querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
+    const active = b.dataset.active === "true";
+    if (active && !confirm("Deactivate this person? They will be signed out and cannot sign in until reactivated.")) return;
+    try { await LL.api(`/users/${b.dataset.toggle}/${active ? "deactivate" : "reactivate"}`, { method: "POST" }); toast(active ? "Deactivated" : "Reactivated"); loadUsers(); }
+    catch { toast("Something went wrong. Try again."); }
+  });
+}
+
+// ---------------- activity log ----------------
+const AUDIT_TEXT = {
+  "report.submitted": "submitted a report", "user.registered": "registered", "user.role_verified": "approved a role",
+  "user.role_rejected": "declined a role", "user.deactivated": "deactivated a person", "user.reactivated": "reactivated a person",
+  "case.opened": "opened a case", "case.status_changed": "changed a case status", "case.report_linked": "linked a report to a case",
+  "case.diagnosis_recorded": "recorded a diagnosis", "case.lab_result_added": "added a lab result",
+  "case.collaborator_assigned": "assigned a collaborator", "location.created": "added a place", "research.exported": "exported research data",
+};
+async function loadAudit() {
+  const rows = await LL.api("/users/audit-log?limit=150");
+  $("pane-audit").innerHTML = rows.length ? rows.map(e => {
+    const d = e.details || {};
+    const extra = e.action === "case.status_changed" ? `${humanize(d.from)} → ${humanize(d.to)}`
+      : d.role ? humanize(d.role) : d.priority ? `priority ${d.priority}` : d.rows !== undefined ? `${d.rows} rows (${d.format})` : "";
+    const link = e.entity_type === "case" ? ` · <a href="/cases?id=${esc(e.entity_id)}">view case</a>` : "";
+    return `<div class="row"><div class="when">${new Date(e.at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div>
+      <div><b>${esc(e.actor_name || "System / USSD")}</b> ${AUDIT_TEXT[e.action] || esc(humanize(e.action))}
+      <div class="sub">${esc(extra)}${link}</div></div></div>`;
+  }).join("") : '<div class="empty">No activity yet.</div>';
+}
+
+// ---------------- SMS outbox ----------------
+async function loadSms() {
+  const rows = await LL.api("/users/notifications?limit=150");
+  $("pane-sms").innerHTML = rows.length ? rows.map(n => `<div class="row">
+      <div class="when">${new Date(n.at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div>
+      <div><span class="pill s-${esc(n.status)}">${esc(n.status === "logged" ? "logged (no SMS key)" : n.status)}</span> to ${esc(n.phone_number)}
+      <div class="sub">${esc(n.message)}</div>${n.error ? `<div class="sub" style="color:var(--urgent)">${esc(n.error)}</div>` : ""}</div></div>`).join("")
+    : '<div class="empty">No SMS alerts yet. They are sent for urgent and zoonotic reports.</div>';
+}
+
+// ---------------- start ----------------
+LL.mountLogin($("login"), start);
+$("logout").onclick = () => { LL.signOut(); location.href = "/admin"; };
+async function start() {
+  $("login").hidden = true; $("logout").hidden = false;
+  try {
+    me = await LL.me();
+    if (!LL.rolesOf(me).has("admin")) {
+      $("app").hidden = false;
+      $("app").innerHTML = '<div class="empty card" style="margin-top:40px"><div class="big">🔒</div>This page is for administrators. <a href="/dashboard">Go to the dashboard</a>.</div>';
+      return;
+    }
+    $("app").hidden = false;
+    await loadPending();
+  } catch (e) {
+    LL.signOut(); $("login").hidden = false; $("app").hidden = true; $("logout").hidden = true;
+  }
+}
+LL.token() ? start() : ($("login").hidden = false);
+</script>
+</body>
+</html>

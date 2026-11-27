@@ -75,5 +75,38 @@ const LL = (() => {
     setToken((await res.json()).access_token, remember);
   }
 
-  return { API, store, esc, fmt, ago, initThemeToggle, isDark, token, setToken, api, login };
+  // ---------- current user ----------
+  let meCache = null;
+  async function me(force) {
+    if (!meCache || force) meCache = await api("/auth/me");
+    return meCache;
+  }
+  const rolesOf = (u) => new Set((u?.roles || []).filter(r => r.verified).map(r => r.role));
+
+  // Show nav links only to roles that can use them: <a data-roles="admin">.
+  async function gateNav() {
+    try {
+      const roles = rolesOf(await me());
+      document.querySelectorAll("[data-roles]").forEach(a => {
+        a.hidden = !a.dataset.roles.split(",").some(r => roles.has(r));
+      });
+    } catch { /* not signed in */ }
+  }
+
+  // Wire a standard sign-in form (#phone, #password, #login-error inside it).
+  function mountLogin(form, onSuccess) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const err = form.querySelector(".error"); err.textContent = "";
+      try {
+        await login(form.querySelector("[name=phone]").value.trim(), form.querySelector("[name=password]").value, false);
+        meCache = null; onSuccess();
+      } catch (ex) { err.textContent = ex.message; }
+    });
+  }
+  function signOut() { setToken(null); meCache = null; }
+
+  const humanize = (s) => String(s ?? "").replace(/_/g, " ");
+
+  return { API, store, esc, fmt, ago, initThemeToggle, isDark, token, setToken, api, login, me, rolesOf, gateNav, mountLogin, signOut, humanize };
 })();

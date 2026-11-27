@@ -54,7 +54,7 @@ PAGE_CSP = "; ".join([
     "base-uri 'self'",
     "form-action 'self'",
 ])
-PAGES = {"/", "/report", "/dashboard"}
+PAGES = {"/", "/report", "/dashboard", "/cases", "/admin"}
 
 
 @app.middleware("http")

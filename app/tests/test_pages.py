@@ -5,6 +5,8 @@ import pytest
     ("/", "Make livestock disease"),
     ("/report", "Report sick animals"),
     ("/dashboard", "Livestock disease surveillance"),
+    ("/cases", "Case management"),
+    ("/admin", "People &amp; activity"),
 ])
 def test_pages_served_with_security_headers(client, path, marker):
     resp = client.get(path)

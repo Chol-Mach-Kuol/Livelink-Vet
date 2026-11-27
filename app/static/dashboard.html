@@ -67,6 +67,9 @@
   .dark-tiles .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6); }
   .dark-tiles .leaflet-control-attribution { background: rgba(24,32,26,.8); color: var(--muted); }
 
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; z-index: 1100; background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; transition: all .3s; pointer-events: none; max-width: calc(100vw - 32px); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .item .act { margin-top: 8px; display: flex; gap: 8px; align-items: center; font-size: 12px; }
   .login { max-width: 400px; margin: 10vh auto; padding: 28px; }
   .login h1 { font-family: var(--display); font-size: 26px; margin-bottom: 6px; }
   .login .btn { width: 100%; margin-top: 18px; padding: 13px; }
@@ -91,6 +94,8 @@
   <nav>
     <a href="/report">Field app</a>
     <a href="/dashboard" aria-current="page" class="hide-sm">Dashboard</a>
+    <a href="/cases" data-roles="veterinarian,admin,animal_health_worker" hidden>Cases</a>
+    <a href="/admin" data-roles="admin" hidden>Admin</a>
     <button class="btn icon-btn ghost" id="theme"></button>
     <button class="btn small ghost" id="logout" hidden>Sign out</button>
   </nav>
@@ -142,13 +147,16 @@
   <p class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;margin:4px 0 0">Signals are decision support, not diagnoses. Qualified veterinarians make all clinical decisions.</p>
 </main>
 
+<div class="toast" id="toast" role="status"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/static/common.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const { esc, fmt, ago } = LL;
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim();
-let map, tiles, reportLayer, clusterLayer, diseaseNames = {}, lastData = null;
+let map, tiles, reportLayer, clusterLayer, diseaseNames = {}, lastData = null, roles = new Set();
+const canOpenCase = () => roles.has("veterinarian") || roles.has("admin");
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3000); }
 
 LL.initThemeToggle($("theme"), () => { setTiles(); if (lastData) draw(lastData); });
 
@@ -244,17 +252,40 @@ function renderList(id, rows, emptyText) {
     node.onclick = go; node.onkeydown = (e) => { if (e.key === "Enter") go(); };
   });
 }
-function drawAlerts(alerts) {
-  const rows = alerts.spatial_clusters.map(c => ({
-    html: `<div class="top"><span>${esc(diseaseNames[c.dominant_signal] || "Unclassified")} cluster</span>` +
-      (c.zoonotic_alert ? `<span class="pill p-zoo">Risk to people</span>` : `<span class="pill p-high">Cluster</span>`) + `</div>` +
-      `<div class="sub">${c.report_count} reports · ${fmt(c.deaths)} deaths · ${esc(c.counties.join("; "))}</div>`,
-    at: [c.centroid.latitude, c.centroid.longitude],
-  })).concat(alerts.temporal_aberrations.map(a => ({
+function unlinkedIds(c, reports) {
+  const status = Object.fromEntries(reports.features.map(f => [f.properties.id, f.properties.status]));
+  return (c.report_ids || []).filter(id => !["linked_to_case", "closed"].includes(status[id]));
+}
+function drawAlerts(alerts, reports) {
+  const rows = alerts.spatial_clusters.map(c => {
+    const free = unlinkedIds(c, reports);
+    const act = !canOpenCase() ? "" : free.length
+      ? `<div class="act"><button class="btn small primary" data-open-case="${esc(free.join(","))}">Open case</button>
+         <span class="muted">${free.length < c.report_count ? `${free.length} of ${c.report_count} reports not yet in a case` : "Turns these reports into one case"}</span></div>`
+      : `<div class="act"><span class="pill p-normal">In a case ✓</span> <a href="/cases">See cases</a></div>`;
+    return {
+      html: `<div class="top"><span>${esc(diseaseNames[c.dominant_signal] || "Unclassified")} cluster</span>` +
+        (c.zoonotic_alert ? `<span class="pill p-zoo">Risk to people</span>` : `<span class="pill p-high">Cluster</span>`) + `</div>` +
+        `<div class="sub">${c.report_count} reports · ${fmt(c.deaths)} deaths · ${esc(c.counties.join("; "))}</div>` + act,
+      at: [c.centroid.latitude, c.centroid.longitude],
+    };
+  }).concat(alerts.temporal_aberrations.map(a => ({
     html: `<div class="top"><span>Spike in ${esc(a.county)}</span><span class="pill p-urgent">EARS-C2 ${a.score}</span></div>` +
       `<div class="sub">${a.reports_today} reports today vs ~${a.baseline_mean}/day usually · ${esc(a.state)}</div>`,
   })));
   renderList("alerts", rows, "No clusters or spikes detected. ✓");
+  $("alerts").querySelectorAll("[data-open-case]").forEach(b => b.onclick = async (e) => {
+    e.stopPropagation();
+    b.disabled = true; b.textContent = "Opening…";
+    try {
+      const created = await LL.api("/cases/from-reports", { method: "POST", body: JSON.stringify({ report_ids: b.dataset.openCase.split(",") }) });
+      location.href = `/cases?id=${created.id}`;
+    } catch (err) {
+      b.disabled = false; b.textContent = "Open case";
+      toast(err.status === 409 ? "Some reports were just added to another case. Refreshing…" : "Could not open the case.");
+      if (err.status === 409) load(false);
+    }
+  });
 }
 function drawUrgent(reports) {
   const rows = reports.features.filter(f => f.properties.priority === "urgent").slice(0, 30).map(f => {
@@ -338,7 +369,7 @@ let resizeT; addEventListener("resize", () => { clearTimeout(resizeT); resizeT =
 
 // ------------------------------------------------------------------ load
 function draw(d, fit) {
-  drawTiles(d.summary, d.alerts); drawAlerts(d.alerts); drawUrgent(d.reports);
+  drawTiles(d.summary, d.alerts); drawAlerts(d.alerts, d.reports); drawUrgent(d.reports);
   drawMap(d.reports, d.clusters, fit); drawChart(d.trends);
 }
 async function load(fit) {
@@ -370,6 +401,7 @@ async function load(fit) {
 async function start() {
   $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
   initMap(); setTimeout(() => map.invalidateSize(), 0);
+  try { roles = LL.rolesOf(await LL.me(true)); LL.gateNav(); } catch { /* handled by load() */ }
   if (!Object.keys(diseaseNames).length) {
     try { diseaseNames = Object.fromEntries((await LL.api("/reports/signs")).diseases.map(d => [d.code, d.name])); } catch { /* fall back */ }
   }

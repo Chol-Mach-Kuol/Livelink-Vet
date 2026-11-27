@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -50,6 +51,7 @@ class UserOut(BaseModel):
     email: str | None
     is_active: bool
     phone_verified: bool
+    created_at: datetime | None = None
     roles: list[RoleOut] = []
 
     model_config = {"from_attributes": True}

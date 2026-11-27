@@ -51,7 +51,53 @@ def create_admin(name: str, phone: str) -> None:
 
 
 DEMO_VET_PHONE = "+211999000000"
+DEMO_ADMIN_PHONE = "+211999000001"
 DEMO_VET_PASSWORD = "livelink-demo"
+# People waiting for an admin to approve their professional role (no password: demo only).
+DEMO_PENDING = [("Achol Deng", "+211999000101", "veterinarian"), ("Gatluak Ruach", "+211999000102", "animal_health_worker")]
+
+
+def _demo_user(db, name, phone, role, verified=True, password=DEMO_VET_PASSWORD):
+    user = db.query(User).filter(User.phone_number == phone).first()
+    if user:
+        return user
+    user = User(full_name=name, phone_number=phone, password_hash=hash_password(password) if password else None)
+    db.add(user)
+    db.flush()
+    db.add(RoleAssignment(user_id=user.id, role=role, verified=verified))
+    return user
+
+
+def _demo_case(db, vet, reports):
+    """One case already under investigation, so the cases page has something to show."""
+    from app.models.case import Case, CaseAssignment, CaseReport
+    from app.models.diagnosis import Diagnosis, LabResult
+    from app.services import audit
+
+    if db.query(Case).filter(Case.case_number == "LV-DEMO-0001").first() or not reports:
+        return
+    case = Case(case_number="LV-DEMO-0001", location_id=reports[0].location_id, assigned_vet_id=vet.id,
+                priority="high", case_status="investigating")
+    db.add(case)
+    db.flush()
+    db.add(CaseAssignment(case_id=case.id, user_id=vet.id, assignment_role="lead_veterinarian", assigned_by=vet.id))
+    audit.record(db, vet, "case.opened", "case", case.id, priority="high")
+    for r in reports:
+        db.add(CaseReport(case_id=case.id, report_id=r.id))
+        r.report_status = "linked_to_case"
+        audit.record(db, vet, "case.report_linked", "case", case.id, report_id=r.id)
+    audit.record(db, vet, "case.status_changed", "case", case.id,
+                 **{"from": "open", "to": "investigating", "note": "Field visit planned"})
+    diag = Diagnosis(case_id=case.id, veterinarian_id=vet.id, disease_name="Contagious Bovine Pleuropneumonia (CBPP)",
+                     diagnosis_status="suspected", diagnostic_method="clinical_examination",
+                     clinical_notes="Coughing and laboured breathing in several animals; extended neck posture.")
+    lab = LabResult(case_id=case.id, laboratory_name="Central Veterinary Laboratory", test_name="CBPP cELISA",
+                    sample_type="Serum", result="Samples sent; result pending.", verified_by=vet.id)
+    db.add_all([diag, lab])
+    db.flush()
+    audit.record(db, vet, "case.diagnosis_recorded", "case", case.id, diagnosis_id=diag.id,
+                 disease=diag.disease_name, status="suspected")
+    audit.record(db, vet, "case.lab_result_added", "case", case.id, lab_result_id=lab.id, test=lab.test_name)
 
 
 def seed_demo() -> None:
@@ -60,12 +106,10 @@ def seed_demo() -> None:
     upgrade_db()
     rng = random.Random(42)
     with SessionLocal() as db:
-        if not db.query(User).filter(User.phone_number == DEMO_VET_PHONE).first():
-            vet = User(full_name="Demo Veterinarian", phone_number=DEMO_VET_PHONE,
-                       password_hash=hash_password(DEMO_VET_PASSWORD))
-            db.add(vet)
-            db.flush()
-            db.add(RoleAssignment(user_id=vet.id, role="veterinarian", verified=True))
+        vet = _demo_user(db, "Demo Veterinarian", DEMO_VET_PHONE, "veterinarian")
+        _demo_user(db, "Demo Administrator", DEMO_ADMIN_PHONE, "admin")
+        for name, phone, role in DEMO_PENDING:
+            _demo_user(db, name, phone, role, verified=False, password=None)
         locs = []
         for data in DEMO_LOCATIONS:
             loc = db.query(Location).filter_by(state=data["state"], county=data["county"], payam=data["payam"]).first()
@@ -102,9 +146,13 @@ def seed_demo() -> None:
                 symptoms="Cattle found dead with blood from the nose", affected_count=6, death_count=3 + i % 2,
             )
             created += new
+        cbpp = [r for r in db.query(DiseaseReport).filter(DiseaseReport.client_ref.like("demo-bg-%"))
+                if (r.triage or {}).get("signals") and r.triage["signals"][0]["disease"] == "cbpp"][:2]
+        _demo_case(db, vet, cbpp)
         db.commit()
     print(f"Seeded {len(locs)} locations and {created} reports (idempotent; re-running adds nothing).")
-    print(f"Demo dashboard login: {DEMO_VET_PHONE} / {DEMO_VET_PASSWORD}  ->  http://127.0.0.1:8000/dashboard")
+    print(f"Demo logins (password {DEMO_VET_PASSWORD}): vet {DEMO_VET_PHONE}, admin {DEMO_ADMIN_PHONE}")
+    print("Open http://127.0.0.1:8000  (dashboard, cases, admin)")
 
 
 def main() -> None:

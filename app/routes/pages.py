@@ -28,6 +28,16 @@ def dashboard():
     return _page("dashboard.html")
 
 
+@router.get("/cases")
+def cases_page():
+    return _page("cases.html")
+
+
+@router.get("/admin")
+def admin_page():
+    return _page("admin.html")
+
+
 @router.get("/sw.js")
 def service_worker():
     # Served from the root so it can control /report.

@@ -69,7 +69,7 @@ as a deploy step instead.
 
 ```bash
 python -m app.cli create-admin --name "Your Name" --phone +2119XXXXXXXX
-python -m app.cli seed-demo   # 6 locations, 29 reports including a suspected anthrax cluster
+python -m app.cli seed-demo   # places, reports (incl. an anthrax cluster), demo logins, a case
 ```
 
 ## Run
@@ -87,10 +87,15 @@ API docs: <http://127.0.0.1:8000/docs>
 | `/` | Everyone. Mission, live 30-day numbers, and an animated phone playing the USSD flow. |
 | `/report` | Field workers and herders with smartphones. Big tap targets, live triage as signs are tapped, GPS, and an offline outbox that syncs by itself when signal returns. It can be installed to the home screen and opens with no signal. |
 | `/dashboard` | Verified vets, animal health workers, researchers and admins. Map of reports and pulsing outbreak clusters, early-warning alerts, urgent feed, and a weekly trend chart with a table view. |
+| `/cases` | Vets and admins manage cases: lifecycle tracker, linked reports, diagnoses, lab results and full history. Only valid next steps are offered. Opened from a dashboard cluster in one click. |
+| `/admin` | Admins approve or decline professional roles, search people, deactivate or reactivate accounts, and read the activity log and SMS outbox. |
 
 All three pages share one design system (`app/static/theme.css`), follow the phone's light or
-dark setting (with a toggle), and work from phone width up. After `seed-demo`, the demo login is
-`+211999000000` / `livelink-demo` (`seed-demo` refuses to run in production).
+dark setting (with a toggle), and work from phone width up.
+
+After `seed-demo` (which refuses to run in production) the password for both demo logins is
+`livelink-demo`: vet `+211999000000`, admin `+211999000001`. It also adds two people waiting for
+approval and one case under investigation.
 
 Security: failed logins are limited (5 per phone number, 30 per IP, per 15 minutes; in memory,
 so per app instance), and the pages send a strict Content-Security-Policy.
